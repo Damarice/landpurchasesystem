@@ -67,6 +67,9 @@
   // Transaction Log
   const logContainer = document.getElementById('logContainer');
 
+  // API instance from global
+  const API = (typeof window !== 'undefined' && window.LandPurchaseAPI) ? window.LandPurchaseAPI : null;
+
   // ==========================================
   // BACKEND API INTEGRATION
   // ==========================================
@@ -75,13 +78,13 @@
    * Load plots from backend API
    */
   async function loadPlots() {
-    if (!USE_BACKEND || typeof LandPurchaseAPI === 'undefined') {
+    if (!USE_BACKEND || !API || typeof API.getPlots !== 'function') {
       console.log('Backend not available, using mock data');
       return;
     }
     
     try {
-      const plots = await LandPurchaseAPI.getPlots();
+      const plots = await API.getPlots();
       soldSet = new Set();
       
       plots.forEach(plot => {
@@ -90,7 +93,7 @@
         }
       });
       
-      const stats = await LandPurchaseAPI.getPlotStats();
+      const stats = await API.getPlotStats();
       soldEl.innerText = stats.summary.sold || 0;
       availEl.innerText = stats.summary.available || 0;
       
@@ -112,18 +115,18 @@
     const occupation = buyerOccupationInput.value.trim();
     const budget = parseFloat(buyerBudgetInput.value) || 0;
     
-    if (!name || !idNumber || !phone || !email || !USE_BACKEND) {
+    if (!name || !idNumber || !phone || !email || !USE_BACKEND || !API) {
       return null;
     }
     
     try {
       // Try to find existing buyer
-      const buyers = await LandPurchaseAPI.getBuyers();
+      const buyers = await API.getBuyers();
       let buyer = buyers.find(b => b.id_number === idNumber);
       
       if (!buyer) {
         // Create new buyer
-        buyer = await LandPurchaseAPI.createBuyer({
+        buyer = await API.createBuyer({
           name,
           id_number: idNumber,
           phone,
@@ -147,14 +150,14 @@
    * Save transaction to backend
    */
   async function saveTransaction(buyerData, plots, totalCost, note, budgetBefore, budgetAfter) {
-    if (!USE_BACKEND || typeof LandPurchaseAPI === 'undefined' || !currentBuyerId) {
+    if (!USE_BACKEND || !API || !currentBuyerId) {
       return;
     }
     
     try {
       const plotIds = plots.join(',');
       
-      await LandPurchaseAPI.createTransaction({
+      await API.createTransaction({
         buyer_id: currentBuyerId,
         plot_ids: plotIds,
         total_amount: totalCost,
@@ -469,9 +472,9 @@
     };
     
     // Mark plots as sold in backend
-    if (USE_BACKEND && typeof LandPurchaseAPI !== 'undefined' && currentBuyerId) {
+    if (USE_BACKEND && API && currentBuyerId) {
       try {
-        await LandPurchaseAPI.updatePlotsBulk(plots, 'sold', currentBuyerId);
+        await API.updatePlotsBulk(plots, 'sold', currentBuyerId);
         console.log('✓ Plots marked as sold in backend');
       } catch (error) {
         console.error('Failed to update plots:', error);
@@ -485,7 +488,7 @@
     await saveTransaction(buyerInfo, plots, totalCost, note, budgetBefore, budgetAfter);
     
     // Re-sync from backend to ensure UI reflects authoritative state
-    if (USE_BACKEND && typeof LandPurchaseAPI !== 'undefined') {
+    if (USE_BACKEND && API) {
       await loadPlots();
     }
 
