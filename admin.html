@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Admin · Land Purchase System</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .admin-wrap { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+  .admin-header { display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .admin-h1 { font-size: 20px; font-weight: 700; margin: 0; }
+  .filters { display:flex; gap:8px; flex-wrap: wrap; }
+  .panel { background:#fff; border:1px solid var(--border); border-radius: 12px; padding:16px; margin-bottom:20px; box-shadow:0 2px 8px var(--shadow); }
+  table { width:100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  th { background: #f8fbff; font-weight:600; }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap:20px; }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  .pill { padding: 2px 8px; border-radius: 999px; font-size: 12px; border:1px solid var(--border); }
+  .pill.pending{ background:#fff7ed; color:#9a3412; border-color:#fdba74 }
+  .pill.completed{ background:#ecfdf5; color:#065f46; border-color:#a7f3d0 }
+  .pill.failed{ background:#fef2f2; color:#991b1b; border-color:#fecaca }
+  .actions { display:flex; gap:8px; }
+  input, select { padding:8px 10px; border:1px solid var(--border); border-radius: 8px; }
+</style>
+</head>
+<body>
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <div>
+        <div class="admin-h1">Admin Dashboard</div>
+        <div class="muted">Buyers · Transactions · Plot stats</div>
+      </div>
+      <div class="actions">
+        <a href="index.html"><button class="ghost">← Back to App</button></a>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="panel" id="statsPanel">
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div><strong>Total Plots:</strong> <span id="statTotal">0</span></div>
+        <div><strong>Available:</strong> <span id="statAvailable">0</span></div>
+        <div><strong>Sold:</strong> <span id="statSold">0</span></div>
+        <div><strong>Selected:</strong> <span id="statSelected">0</span></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-weight:600;">Buyers</div>
+          <div class="filters">
+            <input id="buyerSearch" placeholder="Search name or ID number" />
+          </div>
+        </div>
+        <div style="overflow:auto; max-height: 420px;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>ID Number</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Budget</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="buyersTbody">
+              <tr><td colspan="7" class="muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-weight:600;">Transactions</div>
+          <div class="filters">
+            <select id="statusFilter">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+        </div>
+        <div style="overflow:auto; max-height: 420px;">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Buyer</th>
+                <th>Plots</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="txTbody">
+              <tr><td colspan="6" class="muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.API_BASE_URL = 'https://landpurchasesystem.onrender.com/api';
+  </script>
+  <script src="api-client.js"></script>
+  <script>
+    const api = window.LandPurchaseAPI;
+
+    async function loadStats(){
+      try {
+        const s = await api.getPlotStats();
+        document.getElementById('statTotal').innerText = s.totalPlots || 0;
+        document.getElementById('statAvailable').innerText = s.summary?.available || 0;
+        document.getElementById('statSold').innerText = s.summary?.sold || 0;
+        document.getElementById('statSelected').innerText = s.summary?.selected || 0;
+      } catch(e){ console.error(e); }
+    }
+
+    let buyersCache = [];
+    async function loadBuyers(){
+      const tbody = document.getElementById('buyersTbody');
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">Loading…</td></tr>';
+      try {
+        const buyers = await api.getBuyers();
+        buyersCache = buyers || [];
+        renderBuyers(buyersCache);
+      } catch(e){
+        tbody.innerHTML = `<tr><td colspan="7" class="muted">Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderBuyers(list){
+      const tbody = document.getElementById('buyersTbody');
+      if (!list.length){
+        tbody.innerHTML = '<tr><td colspan="7" class="muted">No buyers yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(b => `
+        <tr>
+          <td>${b.id}</td>
+          <td>${escapeHtml(b.name)}</td>
+          <td>${escapeHtml(b.id_number || '')}</td>
+          <td>${escapeHtml(b.phone || '')}</td>
+          <td>${escapeHtml(b.email || '')}</td>
+          <td>${Number(b.budget || 0).toLocaleString()}</td>
+          <td>${escapeHtml((b.created_at||'').toString()).slice(0,19).replace('T',' ')}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function loadTransactions(){
+      const tbody = document.getElementById('txTbody');
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+      try {
+        const status = document.getElementById('statusFilter').value || undefined;
+        const list = await api.getTransactions(status ? { payment_status: status } : {});
+        renderTransactions(list || []);
+      } catch(e){
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    function renderTransactions(list){
+      const tbody = document.getElementById('txTbody');
+      if (!list.length){
+        tbody.innerHTML = '<tr><td colspan="6" class="muted">No transactions yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(t => `
+        <tr>
+          <td>${t.id}</td>
+          <td>${escapeHtml(t.buyer_name || '')}</td>
+          <td>${escapeHtml((t.plot_ids||'').toString())}</td>
+          <td>${Number(t.total_amount || 0).toLocaleString()}</td>
+          <td><span class="pill ${escapeHtml(t.payment_status||'pending')}">${escapeHtml(t.payment_status||'pending')}</span></td>
+          <td>${escapeHtml((t.created_at||'').toString()).slice(0,19).replace('T',' ')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', async ()=>{
+      await Promise.all([loadStats(), loadBuyers(), loadTransactions()]);
+    });
+    document.getElementById('statusFilter').addEventListener('change', loadTransactions);
+    document.getElementById('buyerSearch').addEventListener('input', (e)=>{
+      const q = e.target.value.toLowerCase().trim();
+      const filtered = !q ? buyersCache : buyersCache.filter(b =>
+        (b.name||'').toLowerCase().includes(q) || (b.id_number||'').toLowerCase().includes(q)
+      );
+      renderBuyers(filtered);
+    });
+
+    (async function init(){
+      await Promise.all([loadStats(), loadBuyers(), loadTransactions()]);
+    })();
+  </script>
+</body>
+</html>
+
+
