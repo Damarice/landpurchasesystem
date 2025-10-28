@@ -7,8 +7,11 @@
    ============================================ */
 
 class LandPurchaseAPI {
-  constructor(baseURL = 'http://localhost:3000/api') {
-    this.baseURL = baseURL;
+  constructor(baseURL) {
+    const resolvedBase = baseURL 
+      || (typeof window !== 'undefined' && window.API_BASE_URL)
+      || (typeof location !== 'undefined' ? `${location.protocol}//${location.host}/api` : 'http://localhost:3000/api');
+    this.baseURL = resolvedBase;
   }
 
   // ==========================================
