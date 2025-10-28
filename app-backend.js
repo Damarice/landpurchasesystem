@@ -484,6 +484,11 @@
     // Save transaction to backend
     await saveTransaction(buyerInfo, plots, totalCost, note, budgetBefore, budgetAfter);
     
+    // Re-sync from backend to ensure UI reflects authoritative state
+    if (USE_BACKEND && typeof LandPurchaseAPI !== 'undefined') {
+      await loadPlots();
+    }
+
     // Add to log
     log(buyerInfo, plots, totalCost, note, budgetBefore, budgetAfter);
     
