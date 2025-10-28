@@ -99,15 +99,7 @@ async function updatePlotsBulk(plotIds, status, buyerId) {
 async function getPlotsStats() {
   if (useSupabase) {
     const s = await sbGetPlotStats();
-    return {
-      totalPlots: s.totalPlots,
-      byStatus: [
-        { status: 'available', count: s.available, total_value: null },
-        { status: 'selected', count: s.selected, total_value: null },
-        { status: 'sold', count: s.sold, total_value: null }
-      ],
-      summary: { available: s.available, sold: s.sold, selected: s.selected }
-    };
+    return s;
   }
   const stats = await sqlite.allQuery(`
     SELECT 
@@ -118,6 +110,8 @@ async function getPlotsStats() {
     GROUP BY status
   `);
   const totalPlots = await sqlite.getQuery('SELECT COUNT(*) as count FROM plots');
+  const totalValueAllRow = await sqlite.getQuery('SELECT SUM(price) as total FROM plots');
+  const totalValueSoldRow = await sqlite.getQuery("SELECT SUM(price) as total FROM plots WHERE status = 'sold'");
   return {
     totalPlots: totalPlots.count,
     byStatus: stats,
@@ -125,6 +119,10 @@ async function getPlotsStats() {
       available: stats.find(s => s.status === 'available')?.count || 0,
       sold: stats.find(s => s.status === 'sold')?.count || 0,
       selected: stats.find(s => s.status === 'selected')?.count || 0
+    },
+    totals: {
+      totalValueAll: totalValueAllRow.total || 0,
+      totalValueSold: totalValueSoldRow.total || 0
     }
   };
 }
@@ -288,6 +286,37 @@ async function updateTransactionStatus(id, payment_status) {
   );
 }
 
+// ============ PAYMENTS ============
+async function listPayments(filters = {}) {
+  if (useSupabase) return await sbGetAllPayments(filters);
+  let query = `SELECT * FROM payments WHERE 1=1`;
+  const params = [];
+  if (filters.buyer_id) { query += ' AND buyer_id = ?'; params.push(filters.buyer_id); }
+  query += ' ORDER BY created_at DESC';
+  return await sqlite.allQuery(query, params);
+}
+
+async function createPayment(data) {
+  if (useSupabase) return await sbCreatePayment(data);
+  const { buyer_id, amount, method, notes } = data;
+  if (!buyer_id || !amount) throw new Error('Missing required fields: buyer_id, amount');
+  const result = await sqlite.runQuery(
+    `INSERT INTO payments (buyer_id, amount, method, notes) VALUES (?, ?, ?, ?)`,
+    [buyer_id, amount, method || '', notes || '']
+  );
+  // Update buyer totals (payment increases remaining: decreases total_spent)
+  const buyer = await sqlite.getQuery('SELECT budget, total_spent FROM buyers WHERE id = ?', [buyer_id]);
+  if (buyer && buyer.budget !== undefined) {
+    const newTotal = (Number(buyer.total_spent || 0) - Number(amount || 0));
+    const remaining = Number(buyer.budget) - newTotal;
+    await sqlite.runQuery(
+      `UPDATE buyers SET total_spent = ?, remaining_balance = ? WHERE id = ?`,
+      [Math.max(newTotal, 0), remaining, buyer_id]
+    );
+  }
+  return await sqlite.getQuery('SELECT * FROM payments WHERE id = ?', [result.lastID]);
+}
+
 module.exports = {
   // mode
   useSupabase,
@@ -307,6 +336,8 @@ module.exports = {
   getTransaction,
   createTransaction,
   updateTransactionStatus
+  ,listPayments
+  ,createPayment
 };
 
 

@@ -14,7 +14,9 @@ const {
   listTransactions,
   getTransaction,
   createTransaction: createTx,
-  updateTransactionStatus: updateTxStatus
+  updateTransactionStatus: updateTxStatus,
+  listPayments,
+  createPayment
 } = require('../config/db-adapter');
 
 /**
@@ -75,6 +77,33 @@ router.put('/:id/status', async (req, res) => {
     res.json(updatedTransaction);
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/transactions/payments
+ * List payments (optional filter by buyer_id)
+ */
+router.get('/payments', async (req, res) => {
+  try {
+    const { buyer_id } = req.query;
+    const payments = await listPayments({ buyer_id });
+    res.json(payments);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/transactions/payments
+ * Create a payment
+ */
+router.post('/payments', async (req, res) => {
+  try {
+    const payment = await createPayment(req.body);
+    res.status(201).json(payment);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

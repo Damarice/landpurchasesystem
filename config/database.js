@@ -73,6 +73,17 @@ async function createTables() {
       notes TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (buyer_id) REFERENCES buyers(id)
+    )`,
+
+    // Payments table (manual payments recorded against buyer)
+    `CREATE TABLE IF NOT EXISTS payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      buyer_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      method TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (buyer_id) REFERENCES buyers(id)
     )`
   ];
   

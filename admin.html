@@ -105,6 +105,34 @@
           </table>
         </div>
       </div>
+
+      <div class="panel">
+        <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom:10px;">
+          <div style="font-weight:600;">Buyer Ledger</div>
+          <div class="filters">
+            <input id="ledgerQuery" placeholder="Enter buyer ID number or UID" />
+            <button id="loadLedgerBtn">Load Ledger</button>
+          </div>
+        </div>
+        <div class="muted" id="ledgerHeader">Enter a buyer ID number (e.g., national ID) or UID (name-id)</div>
+        <div style="overflow:auto; max-height: 420px; margin-top:10px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Details</th>
+                <th>Amount</th>
+                <th>Balance vs Budget</th>
+                <th>Balance vs Project</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTbody">
+              <tr><td colspan="6" class="muted">No data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -186,6 +214,65 @@
         </tr>
       `).join('');
     }
+    
+    async function loadLedger(){
+      const q = (document.getElementById('ledgerQuery').value||'').trim().toLowerCase();
+      const tbody = document.getElementById('ledgerTbody');
+      const header = document.getElementById('ledgerHeader');
+      tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+      try {
+        const buyers = buyersCache.length ? buyersCache : await api.getBuyers();
+        const buyer = buyers.find(b => String(b.id_number||'').toLowerCase() === q || String(b.uid||'').toLowerCase() === q);
+        if (!buyer){
+          header.textContent = 'Buyer not found. Enter a valid ID number or UID.';
+          tbody.innerHTML = '<tr><td colspan="6" class="muted">No data</td></tr>';
+          return;
+        }
+        header.innerHTML = `Buyer: <strong>${escapeHtml(buyer.name)}</strong> · ID: <strong>${escapeHtml(buyer.id_number||'')}</strong> · UID: <strong>${escapeHtml(buyer.uid||'')}</strong> · Budget: <strong>${Number(buyer.budget||0).toLocaleString()}</strong> · Total Spent: <strong>${Number(buyer.total_spent||0).toLocaleString()}</strong> · Remaining: <strong>${Number(buyer.remaining_balance||0).toLocaleString()}</strong>`;
+        const [tx, payments, stats] = await Promise.all([
+          api.getTransactions({ buyer_id: buyer.id }),
+          api.getPayments({ buyer_id: buyer.id }),
+          api.getPlotStats()
+        ]);
+        const entriesPurchases = (tx||[]).map(t => ({
+          date: (t.created_at||'').toString().slice(0,19).replace('T',' '),
+          type: 'Purchase',
+          details: `Plots ${String(t.plot_ids||'')}`,
+          amount: Number(t.total_amount||0)
+        }));
+        const entriesPayments = (payments||[]).map(p => ({
+          date: (p.created_at||'').toString().slice(0,19).replace('T',' '),
+          type: 'Payment',
+          details: p.method ? `Method: ${escapeHtml(p.method)}` : 'Payment',
+          amount: -Number(p.amount||0)
+        }));
+        const entries = entriesPurchases.concat(entriesPayments).sort((a,b)=> a.date.localeCompare(b.date));
+        let budgetBalance = Number(buyer.budget||0);
+        const projectTotal = Number(stats?.totals?.totalValueAll || 0);
+        let projectBalance = projectTotal;
+        const rows = entries.map(e => {
+          budgetBalance += -e.amount; // purchases reduce budget balance (amount positive), payments increase (amount negative)
+          projectBalance += -e.amount;
+          return `
+            <tr>
+              <td>${escapeHtml(e.date)}</td>
+              <td>${e.type}</td>
+              <td>${escapeHtml(e.details)}</td>
+              <td>${(e.amount<0?'-':'')}${Math.abs(e.amount).toLocaleString()}</td>
+              <td>${(Number(buyer.budget||0)- (Number(buyer.total_spent||0)+ (e.type==='Purchase'?e.amount:0) - (e.type==='Payment'?Math.abs(e.amount):0))).toLocaleString()}</td>
+              <td>${projectBalance.toLocaleString()}</td>
+            </tr>
+          `;
+        });
+        if (!rows.length){
+          tbody.innerHTML = '<tr><td colspan="6" class="muted">No transactions yet</td></tr>';
+        } else {
+          tbody.innerHTML = rows.join('');
+        }
+      } catch(e){
+        tbody.innerHTML = `<tr><td colspan=\"6\" class=\"muted\">Error: ${escapeHtml(e.message)}</td></tr>`;
+      }
+    }
 
     function escapeHtml(s){
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -206,6 +293,8 @@
     (async function init(){
       await Promise.all([loadStats(), loadBuyers(), loadTransactions()]);
     })();
+    
+    document.getElementById('loadLedgerBtn').addEventListener('click', loadLedger);
   </script>
 </body>
 </html>

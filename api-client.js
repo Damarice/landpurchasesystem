@@ -127,6 +127,23 @@ class LandPurchaseAPI {
       body: JSON.stringify({ payment_status: paymentStatus })
     });
   }
+
+  // ==========================================
+  // PAYMENTS API
+  // ==========================================
+
+  async getPayments(filters = {}) {
+    const params = new URLSearchParams(filters);
+    const endpoint = `/transactions/payments?${params}`;
+    return this.request(endpoint);
+  }
+
+  async createPayment(paymentData) {
+    return this.request('/transactions/payments', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
 }
 
 // Export singleton instance

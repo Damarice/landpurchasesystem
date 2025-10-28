@@ -92,7 +92,7 @@ async function getPlotStats() {
   
   const { data, error } = await supabase
     .from('plots')
-    .select('status');
+    .select('status, price');
   
   if (error) throw error;
   
@@ -100,10 +100,62 @@ async function getPlotStats() {
     totalPlots: data.length,
     available: data.filter(p => p.status === 'available').length,
     selected: data.filter(p => p.status === 'selected').length,
-    sold: data.filter(p => p.status === 'sold').length
+    sold: data.filter(p => p.status === 'sold').length,
+    totals: {
+      totalValueAll: data.reduce((s, p) => s + Number(p.price || 0), 0),
+      totalValueSold: data.filter(p => p.status === 'sold').reduce((s, p) => s + Number(p.price || 0), 0)
+    }
   };
   
-  return stats;
+  return {
+    totalPlots: stats.totalPlots,
+    byStatus: [
+      { status: 'available', count: stats.available, total_value: null },
+      { status: 'selected', count: stats.selected, total_value: null },
+      { status: 'sold', count: stats.sold, total_value: null }
+    ],
+    summary: { available: stats.available, sold: stats.sold, selected: stats.selected },
+    totals: stats.totals
+  };
+}
+
+// Payments helpers
+async function getAllPayments(filters = {}) {
+  const supabase = getDatabase();
+  let query = supabase.from('payments').select('*');
+  if (filters.buyer_id) query = query.eq('buyer_id', filters.buyer_id);
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+async function createPayment(paymentData) {
+  const supabase = getDatabase();
+  const { data, error } = await supabase
+    .from('payments')
+    .insert(paymentData)
+    .select()
+    .single();
+  if (error) throw error;
+  // Update buyer totals
+  const buyerId = data.buyer_id;
+  const amount = Number(data.amount || 0);
+  if (buyerId) {
+    const { data: buyer } = await supabase
+      .from('buyers')
+      .select('budget,total_spent')
+      .eq('id', buyerId)
+      .single();
+    if (buyer) {
+      const newTotal = Number(buyer.total_spent || 0) - amount;
+      const remaining = Number(buyer.budget || 0) - newTotal;
+      await supabase
+        .from('buyers')
+        .update({ total_spent: Math.max(newTotal, 0), remaining_balance: remaining })
+        .eq('id', buyerId);
+    }
+  }
+  return data;
 }
 
 /**
