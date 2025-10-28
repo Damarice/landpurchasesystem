@@ -1,0 +1,610 @@
+/* ============================================
+   CSS CUSTOM PROPERTIES (DESIGN TOKENS)
+   ============================================ */
+:root {
+    /* Layout & Grid */
+    --plot-size: 42px;
+    --gap: 6px;
+    
+    /* Business Logic */
+    --price: 65800;
+    
+    /* Color Palette */
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --success: #16a34a;
+    --success-light: #dcfce7;
+    --danger: #dc2626;
+    --warning: #f59e0b;
+    
+    /* Surfaces & Backgrounds */
+    --surface: #ffffff;
+    --background: #f6f7fb;
+    
+    /* Typography */
+    --text: #111;
+    --text-muted: #666;
+    
+    /* Borders & Shadows */
+    --border: #e6e9f0;
+    --shadow: rgba(12,20,40,.06);
+}
+
+/* ============================================
+   GLOBAL RESET & BASE STYLES
+   ============================================ */
+* { 
+    box-sizing: border-box; 
+}
+
+body {
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    margin: 0;
+    padding: 18px;
+    background: var(--background);
+    color: var(--text);
+    line-height: 1.5;
+}
+
+/* ============================================
+   HEADER SECTION
+   ============================================ */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+h1 {
+    font-size: 24px;
+    margin: 0;
+    font-weight: 700;
+}
+
+.meta {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* ============================================
+   BUTTON STYLES
+   ============================================ */
+button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all .2s;
+    box-shadow: 0 1px 3px var(--shadow);
+}
+
+button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow);
+}
+
+button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Button Variants */
+button.ghost {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary-light);
+    box-shadow: none;
+}
+
+button.danger {
+    background: var(--danger);
+}
+
+.controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* ============================================
+   MAIN LAYOUT GRID
+   ============================================ */
+.layout {
+    display: grid;
+    grid-template-columns: 1fr 360px; /* Map takes remaining space, sidebar is fixed */
+    gap: 20px;
+    align-items: start;
+}
+
+/* ============================================
+   MAP / GRID SECTION
+   ============================================ */
+.map {
+    width: 100%;
+    padding: 20px;
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px var(--shadow);
+}
+
+.map-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.map-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.view-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.view-controls button {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.grid-wrapper {
+    overflow: auto;
+    max-width: 100%;
+}
+
+/* Plot Grid - 20x10 layout for 200 plots */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(20, var(--plot-size));
+    grid-auto-rows: var(--plot-size);
+    gap: var(--gap);
+    margin: 0 auto;
+    width: fit-content;
+}
+
+/* ============================================
+   INDIVIDUAL PLOT STYLING
+   ============================================ */
+.plot {
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    border: 2px solid transparent;
+    transition: all .15s cubic-bezier(0.4, 0, 0.2, 1);
+    background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+    color: white;
+    position: relative;
+}
+
+/* Inner border effect for depth */
+.plot::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.2);
+    pointer-events: none;
+}
+
+/* Available plot hover state */
+.plot:hover:not(.sold) {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 6px 20px rgba(59,130,246,.4);
+    border-color: #1d4ed8;
+    z-index: 10;
+}
+
+/* Sold plot state */
+.plot.sold {
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+    color: white;
+    cursor: not-allowed;
+    border-color: #15803d;
+}
+
+.plot.sold::before {
+    border-color: rgba(255,255,255,.3);
+}
+
+/* Selected plot state */
+.plot.selected {
+    background: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+    border-color: #f59e0b;
+    box-shadow: 0 4px 16px rgba(245,158,11,.4);
+    transform: scale(1.05);
+    z-index: 5;
+    color: #78350f;
+}
+
+/* ============================================
+   BULK ACTIONS BAR
+   ============================================ */
+.bulk-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.bulk-actions button {
+    flex: 1;
+    padding: 8px;
+    font-size: 13px;
+}
+
+/* ============================================
+   SIDEBAR SECTION
+   ============================================ */
+.sidebar {
+    background: var(--surface);
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px var(--shadow);
+    position: sticky;
+    top: 18px; /* Sticks to viewport when scrolling */
+}
+
+/* ============================================
+   STATISTICS CARDS
+   ============================================ */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    padding: 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8fbff 0%, #fff 100%);
+    border: 1px solid var(--border);
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+/* ============================================
+   BUYER INFORMATION FORM
+   ============================================ */
+.buyer-section {
+    padding: 20px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f0f7ff 0%, #fff 100%);
+    border: 2px solid var(--primary-light);
+    margin-bottom: 20px;
+}
+
+.buyer-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: inherit;
+    font-size: 14px;
+    transition: border-color .2s;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(11,99,209,.1);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* ============================================
+   BUDGET DISPLAY
+   ============================================ */
+.budget-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-top: 12px;
+}
+
+.budget-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.budget-amount {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--success);
+}
+
+/* Budget warning states */
+.budget-amount.low {
+    color: var(--warning);
+}
+
+.budget-amount.critical {
+    color: var(--danger);
+}
+
+/* ============================================
+   SELECTION SUMMARY
+   ============================================ */
+.selection-summary {
+    padding: 20px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f0f7ff 0%, #fff 100%);
+    border: 2px solid var(--primary-light);
+    margin-bottom: 20px;
+}
+
+.selection-summary.empty {
+    background: #f9fafb;
+    border-color: var(--border);
+}
+
+.selection-title {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.selection-cost {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 4px;
+}
+
+.selection-plots {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   ACTION BUTTONS GROUP
+   ============================================ */
+.action-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.action-group button {
+    width: 100%;
+    padding: 14px;
+    font-size: 15px;
+}
+
+/* ============================================
+   LEGEND
+   ============================================ */
+.legend {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.legend-color {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+/* ============================================
+   TRANSACTION LOG
+   ============================================ */
+.log-section {
+    margin-top: 20px;
+}
+
+.log-header {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.log-container {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.log-entry {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: white;
+    border-left: 4px solid var(--success);
+}
+
+.log-entry:last-child {
+    margin-bottom: 0;
+}
+
+.log-time {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-bottom: 4px;
+}
+
+.log-buyer {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+}
+
+.log-details {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.log-budget {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+}
+
+.log-budget-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.log-budget-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.log-budget-value {
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.log-empty {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 20px;
+}
+
+/* ============================================
+   PAYMENT PLAN DISPLAY
+   ============================================ */
+.payment-plan {
+    padding: 12px;
+    background: #fef3c7;
+    border-radius: 8px;
+    border: 1px solid #fde047;
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.payment-plan-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #92400e;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+footer {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - TABLET
+   ============================================ */
+@media (max-width: 1200px) {
+    .layout {
+        grid-template-columns: 1fr; /* Stack layout vertically */
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE
+   ============================================ */
+@media (max-width: 640px) {
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    h1 {
+        font-size: 20px;
+    }
+    
+    .controls {
+        width: 100%;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr; /* Stack stats vertically */
+    }
+}

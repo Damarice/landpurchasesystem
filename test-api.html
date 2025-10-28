@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Land Purchase System - API Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .result {
+      background: #f5f5f5;
+      border-left: 4px solid #2563eb;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎯 Land Purchase System - API Test</h1>
+  
+  <div id="status" class="result">
+    <strong>Status:</strong> Checking server connection...
+  </div>
+  
+  <h2>API Tests</h2>
+  
+  <button onclick="testPlots()">Get All Plots</button>
+  <button onclick="testStats()">Get Plot Stats</button>
+  <button onclick="testBuyers()">Get All Buyers</button>
+  <button onclick="testTransactions()">Get All Transactions</button>
+  
+  <div id="results"></div>
+  
+  <script>
+    async function updateStatus(message, type = 'info') {
+      const statusEl = document.getElementById('status');
+      const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        info: '#2563eb'
+      };
+      statusEl.innerHTML = `<strong>Status:</strong> ${message}`;
+      statusEl.style.borderLeftColor = colors[type];
+    }
+    
+    async function showResult(data) {
+      const resultsEl = document.getElementById('results');
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(data, null, 2);
+      
+      const div = document.createElement('div');
+      div.className = 'result';
+      div.appendChild(pre);
+      resultsEl.appendChild(div);
+      
+      resultsEl.scrollTop = resultsEl.scrollHeight;
+    }
+    
+    async function testPlots() {
+      try {
+        await updateStatus('Loading plots...', 'info');
+        const response = await fetch('http://localhost:3000/api/plots');
+        const data = await response.json();
+        await updateStatus('✓ Plots loaded successfully', 'success');
+        showResult(data);
+      } catch (error) {
+        await updateStatus(`✗ Error: ${error.message}`, 'error');
+        showResult({ error: error.message });
+      }
+    }
+    
+    async function testStats() {
+      try {
+        await updateStatus('Loading stats...', 'info');
+        const response = await fetch('http://localhost:3000/api/plots/stats');
+        const data = await response.json();
+        await updateStatus('✓ Stats loaded successfully', 'success');
+        showResult(data);
+      } catch (error) {
+        await updateStatus(`✗ Error: ${error.message}`, 'error');
+        showResult({ error: error.message });
+      }
+    }
+    
+    async function testBuyers() {
+      try {
+        await updateStatus('Loading buyers...', 'info');
+        const response = await fetch('http://localhost:3000/api/buyers');
+        const data = await response.json();
+        await updateStatus('✓ Buyers loaded successfully', 'success');
+        showResult(data);
+      } catch (error) {
+        await updateStatus(`✗ Error: ${error.message}`, 'error');
+        showResult({ error: error.message });
+      }
+    }
+    
+    async function testTransactions() {
+      try {
+        await updateStatus('Loading transactions...', 'info');
+        const response = await fetch('http://localhost:3000/api/transactions');
+        const data = await response.json();
+        await updateStatus('✓ Transactions loaded successfully', 'success');
+        showResult(data);
+      } catch (error) {
+        await updateStatus(`✗ Error: ${error.message}`, 'error');
+        showResult({ error: error.message });
+      }
+    }
+    
+    // Test connection on load
+    window.addEventListener('load', async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api');
+        const data = await response.json();
+        await updateStatus('✓ Server is running!', 'success');
+      } catch (error) {
+        await updateStatus('✗ Server not responding. Make sure to run "npm start" first.', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

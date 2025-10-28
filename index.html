@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="style.css">
+<title>Land Purchase System – 200 Plots</title>
+
+</head>
+<body>
+
+<!-- ============================================
+     HEADER SECTION
+     ============================================ -->
+<header>
+  <div>
+    <h1>Land Purchase System</h1>
+    <div class="meta">
+      <strong>200 plots</strong> available at 
+      <strong id="priceReadable">KES 65,800</strong> per plot
+      <span style="color: var(--text-muted)">· Demo Mode</span>
+    </div>
+  </div>
+  <div class="controls">
+    <button id="clearSelection" class="ghost" disabled>Clear Selection</button>
+    <button id="resetDemo" class="ghost">Reset Demo</button>
+  </div>
+</header>
+
+<!-- ============================================
+     MAIN LAYOUT: MAP + SIDEBAR
+     ============================================ -->
+<div class="layout">
+  
+  <!-- LEFT SIDE: LAND PARCEL MAP -->
+  <div class="map">
+    <div class="map-header">
+      <div class="map-title">Land Parcel Grid</div>
+      <div class="view-controls">
+        <button id="zoomOut" class="ghost">−</button>
+        <button id="zoomIn" class="ghost">+</button>
+      </div>
+    </div>
+    
+    <!-- Bulk selection tools -->
+    <div class="bulk-actions">
+      <button id="selectAvailable" class="ghost">Select All Available</button>
+      <button id="selectRange" class="ghost">Select Range</button>
+    </div>
+    
+    <!-- Plot grid container -->
+    <div class="grid-wrapper">
+      <div class="grid" id="grid"></div>
+    </div>
+    
+    <!-- User hint -->
+    <div style="margin-top: 16px; font-size: 13px; color: var(--text-muted);">
+      💡 <strong>Tip:</strong> Click plots to select, hold Shift to select multiple, or use bulk actions above
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE: SIDEBAR WITH FORMS & INFO -->
+  <aside class="sidebar">
+    
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Available</div>
+        <div class="stat-value" id="availableCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Sold</div>
+        <div class="stat-value" id="soldCount">0</div>
+      </div>
+    </div>
+
+    <!-- Buyer Information Form -->
+    <div class="buyer-section">
+      <div class="buyer-header">👤 Buyer Information</div>
+      
+      <div class="form-group">
+        <label>Full Name *</label>
+        <input type="text" id="buyerName" placeholder="Enter buyer's full name" />
+      </div>
+      
+      <div class="form-group">
+        <label>National ID / Passport Number *</label>
+        <input type="text" id="buyerID" placeholder="e.g., 12345678" />
+      </div>
+      
+      <div class="form-group">
+        <label>Phone Number *</label>
+        <input type="tel" id="buyerPhone" placeholder="e.g., +254712345678" />
+      </div>
+      
+      <div class="form-group">
+        <label>Email Address *</label>
+        <input type="email" id="buyerEmail" placeholder="e.g., buyer@example.com" />
+      </div>
+      
+      <div class="form-group">
+        <label>Physical Address</label>
+        <textarea id="buyerAddress" placeholder="Street address, city, postal code" style="min-height: 60px;"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label>Occupation</label>
+        <input type="text" id="buyerOccupation" placeholder="e.g., Business Owner, Teacher" />
+      </div>
+      
+      <div class="form-group">
+        <label>Budget (KES) *</label>
+        <input type="number" id="buyerBudget" placeholder="e.g., 5000000" min="0" step="10000" />
+      </div>
+      
+      <!-- Remaining Budget Display -->
+      <div class="budget-display">
+        <div>
+          <div class="budget-label">Remaining Budget</div>
+          <div class="budget-amount" id="remainingBudget">KES 0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selection Summary Card -->
+    <div class="selection-summary" id="summaryCard">
+      <div class="selection-title">Current Selection</div>
+      <div class="selection-cost" id="selectedCost">KES 0</div>
+      <div class="selection-plots" id="selectedInfo">No plots selected</div>
+    </div>
+
+    <!-- Special Requirements Textarea -->
+    <label>
+      Purchase Purpose & Special Requirements
+      <textarea 
+        id="bespokeNote" 
+        placeholder="e.g., Purpose: Residential development. Payment: 30% deposit, 70% over 12 months. Requirements: Corner plots with road access, near amenities..."
+      ></textarea>
+    </label>
+
+    <!-- Purchase Button -->
+    <div class="action-group">
+      <button id="buyBtn" disabled>Complete Purchase</button>
+    </div>
+
+    <!-- Plot Status Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color" style="background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%); border: 1px solid rgba(255,255,255,.2);"></div>
+        <span>Available</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%); border: 2px solid #f59e0b;"></div>
+        <span>Selected</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);"></div>
+        <span>Sold</span>
+      </div>
+    </div>
+
+    <!-- Transaction History Log -->
+    <div class="log-section">
+      <div class="log-header">
+        <span>Transaction History</span>
+        <button id="clearLog" class="ghost" style="padding: 4px 8px; font-size: 11px;">Clear</button>
+      </div>
+      <div class="log-container" id="logContainer">
+        <div class="log-empty">No transactions yet</div>
+      </div>
+    </div>
+
+    <!-- Footer Notice -->
+    <footer>
+      <strong>Demo Mode Notice:</strong> This is a prototype interface. For production deployment, integrate: KYC verification, secure payment gateway, legal title registry, and escrow services.
+    </footer>
+  </aside>
+</div>
+
+<script src="api-client.js"></script>
+<script src="app-backend.js"></script>
+
+</body>
+</html>
