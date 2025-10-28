@@ -52,11 +52,14 @@ async function createTables() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       id_number TEXT NOT NULL,
+      uid TEXT,
       phone TEXT NOT NULL,
       email TEXT NOT NULL,
       address TEXT,
       occupation TEXT,
       budget REAL NOT NULL,
+      total_spent REAL NOT NULL DEFAULT 0,
+      remaining_balance REAL NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`,
     

@@ -27,6 +27,18 @@ const {
   updateTransactionStatus: sbUpdateTransactionStatus
 } = require('./database-supabase-queries');
 
+// Generate a stable UID from name and id_number
+function generateBuyerUid(name, idNumber) {
+  const normalize = (s) => String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const namePart = normalize(name).slice(0, 32);
+  const idPart = String(idNumber || '').replace(/\s+/g, '');
+  return `${namePart}-${idPart}`;
+}
+
 // ============ PLOTS ============
 async function getAllPlots(status) {
   if (useSupabase) return await sbGetAllPlots(status || null);
@@ -140,11 +152,22 @@ async function createBuyer(buyerData) {
     err.status = 409;
     throw err;
   }
-  const result = await sqlite.runQuery(
-    `INSERT INTO buyers (name, id_number, phone, email, address, occupation, budget)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [name, id_number, phone, email, address || '', occupation || '', budget]
-  );
+  const uid = generateBuyerUid(name, id_number);
+  // Try insert with uid if column exists; fall back to insert without uid
+  let result;
+  try {
+    result = await sqlite.runQuery(
+      `INSERT INTO buyers (name, id_number, phone, email, address, occupation, budget, uid)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, id_number, phone, email, address || '', occupation || '', budget, uid]
+    );
+  } catch (e) {
+    result = await sqlite.runQuery(
+      `INSERT INTO buyers (name, id_number, phone, email, address, occupation, budget)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, id_number, phone, email, address || '', occupation || '', budget]
+    );
+  }
   return await sqlite.getQuery('SELECT * FROM buyers WHERE id = ?', [result.lastID]);
 }
 
@@ -222,6 +245,17 @@ async function createTransaction(data) {
      VALUES (?, ?, ?, ?, 'pending')`,
     [buyer_id, plotIdsString, total_amount, notes || '']
   );
+
+  // Update buyer totals: total_spent += total_amount, remaining_balance = budget - total_spent
+  const buyer = await sqlite.getQuery('SELECT budget, total_spent FROM buyers WHERE id = ?', [buyer_id]);
+  if (buyer && buyer.budget !== undefined) {
+    const newTotal = (Number(buyer.total_spent || 0) + Number(total_amount || 0));
+    const remaining = Number(buyer.budget) - newTotal;
+    await sqlite.runQuery(
+      `UPDATE buyers SET total_spent = ?, remaining_balance = ? WHERE id = ?`,
+      [newTotal, remaining, buyer_id]
+    );
+  }
   return await sqlite.getQuery(
     `SELECT t.*, b.name as buyer_name 
      FROM transactions t

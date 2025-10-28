@@ -140,9 +140,18 @@ async function getBuyerById(id) {
  */
 async function createBuyer(buyerData) {
   const supabase = getDatabase();
+  // Generate uid for consistency
+  const name = buyerData.name;
+  const idNumber = buyerData.id_number;
+  const normalize = (s) => String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  const uid = `${normalize(name).slice(0,32)}-${String(idNumber||'').replace(/\s+/g,'')}`;
   const { data, error } = await supabase
     .from('buyers')
-    .insert(buyerData)
+    .insert({ ...buyerData, uid })
     .select()
     .single();
   
@@ -201,6 +210,25 @@ async function createTransaction(transactionData) {
     .single();
   
   if (error) throw error;
+
+  // Update buyer totals in buyers table
+  const buyerId = data.buyer_id;
+  const totalAmount = Number(data.total_amount || 0);
+  if (buyerId) {
+    const { data: buyer } = await supabase
+      .from('buyers')
+      .select('budget,total_spent')
+      .eq('id', buyerId)
+      .single();
+    if (buyer) {
+      const newTotal = Number(buyer.total_spent || 0) + totalAmount;
+      const remaining = Number(buyer.budget || 0) - newTotal;
+      await supabase
+        .from('buyers')
+        .update({ total_spent: newTotal, remaining_balance: remaining })
+        .eq('id', buyerId);
+    }
+  }
   return data;
 }
 
