@@ -503,13 +503,19 @@
     updateBudgetDisplay();
     render();
     
-    alert(
-      `✓ Purchase completed!\n\n` +
-      `Buyer: ${buyerName}\n` +
-      `Plots acquired: ${plots.length}\n` +
-      `Total paid: ${formatCurrency(totalCost)}\n` +
-      `Remaining budget: ${formatCurrency(budgetAfter)}`
-    );
+    // Show toast success message
+    try {
+      const toast = document.getElementById('toast');
+      if (toast) {
+        toast.textContent = `✓ Purchase sent successfully for ${buyerName} (${plots.length} plot${plots.length>1?'s':''})`;
+        toast.style.display = 'block';
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+          toast.classList.remove('show');
+          setTimeout(() => toast.style.display = 'none', 200);
+        }, 3500);
+      }
+    } catch(_) {}
   }
 
   // ==========================================
