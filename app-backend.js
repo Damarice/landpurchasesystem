@@ -64,6 +64,21 @@
   // Budget Display
   const remainingBudgetEl = document.getElementById('remainingBudget');
   
+  // Payment Controls
+  const paymentModeFull = document.getElementById('paymentModeFull');
+  const paymentModeInstallments = document.getElementById('paymentModeInstallments');
+  const installmentFields = document.getElementById('installmentFields');
+  const depositTypePercent = document.getElementById('depositTypePercent');
+  const depositTypeAmount = document.getElementById('depositTypeAmount');
+  const depositPercentInput = document.getElementById('depositPercent');
+  const depositAmountInput = document.getElementById('depositAmount');
+  const depositHelper = document.getElementById('depositHelper');
+  const installmentMonthsInput = document.getElementById('installmentMonths');
+  const installmentStartDateInput = document.getElementById('installmentStartDate');
+  const installmentSummary = document.getElementById('installmentSummary');
+  const monthlyAmountEl = document.getElementById('monthlyAmount');
+  const depositPayableEl = document.getElementById('depositPayable');
+  
   // Transaction Log
   const logContainer = document.getElementById('logContainer');
 
@@ -195,6 +210,39 @@
     return `${CURRENCY} ${amount.toLocaleString()}`;
   }
 
+  /**
+   * Compute deposit amount based on current inputs
+   */
+  function computeDepositAmount(totalCost) {
+    if (!(paymentModeInstallments && paymentModeInstallments.checked)) return totalCost;
+    const isPercent = depositTypePercent && depositTypePercent.checked;
+    if (isPercent) {
+      const pct = Math.max(0, Math.min(100, parseFloat(depositPercentInput && depositPercentInput.value) || 0));
+      return Math.round((pct / 100) * totalCost);
+    }
+    const amt = Math.max(0, parseFloat(depositAmountInput && depositAmountInput.value) || 0);
+    return Math.min(totalCost, Math.round(amt));
+  }
+
+  /**
+   * Update installment UI helper labels and monthly calc
+   */
+  function updateInstallmentUI(totalCost) {
+    if (!(paymentModeInstallments && paymentModeInstallments.checked)) return;
+    const depositNow = computeDepositAmount(totalCost);
+    const months = Math.max(0, parseInt(installmentMonthsInput && installmentMonthsInput.value) || 0);
+    const remaining = Math.max(0, totalCost - depositNow);
+    const monthly = months > 0 ? Math.ceil(remaining / months) : 0;
+    
+    if (depositHelper) {
+      const pct = totalCost > 0 ? Math.round((depositNow / totalCost) * 100) : 0;
+      depositHelper.textContent = `Deposit set to ${formatCurrency(depositNow)} (${pct}%) of ${formatCurrency(totalCost)}`;
+    }
+    if (depositPayableEl) depositPayableEl.textContent = formatCurrency(depositNow);
+    if (monthlyAmountEl) monthlyAmountEl.textContent = formatCurrency(monthly);
+    if (installmentSummary) installmentSummary.style.display = totalCost > 0 ? '' : 'none';
+  }
+
   // ==========================================
   // BUDGET MANAGEMENT
   // ==========================================
@@ -238,12 +286,17 @@
     const hasPhone = buyerPhoneInput.value.trim().length > 0;
     const hasEmail = buyerEmailInput.value.trim().length > 0;
     
-    const isValid = selectedCount > 0 && 
-                    hasName && 
-                    hasID && 
-                    hasPhone && 
-                    hasEmail && 
-                    totalCost <= remaining;
+    let paymentValid = false;
+    const isInstallments = paymentModeInstallments && paymentModeInstallments.checked;
+    if (!isInstallments) {
+      paymentValid = totalCost <= remaining;
+    } else {
+      const depositNow = computeDepositAmount(totalCost);
+      const months = parseInt(installmentMonthsInput && installmentMonthsInput.value) || 0;
+      paymentValid = depositNow > 0 && depositNow <= remaining && months >= 2;
+    }
+    
+    const isValid = selectedCount > 0 && hasName && hasID && hasPhone && hasEmail && paymentValid;
     
     buyBtn.disabled = !isValid;
   }
@@ -351,6 +404,10 @@
     
     // Update button states
     clearSelectionBtn.disabled = selectedCount === 0;
+    // Update installment summary when in installment mode
+    if (paymentModeInstallments && paymentModeInstallments.checked) {
+      updateInstallmentUI(totalCost);
+    }
     validatePurchase();
   }
 
@@ -430,8 +487,9 @@
     const budget = parseFloat(buyerBudgetInput.value) || 0;
     const remaining = budget - totalSpent;
     const note = document.getElementById('bespokeNote').value.trim();
+    const isInstallments = paymentModeInstallments && paymentModeInstallments.checked;
     
-    if (totalCost > remaining) {
+    if (!isInstallments && totalCost > remaining) {
       alert(
         `Insufficient budget!\n\n` +
         `Selected plots cost: ${formatCurrency(totalCost)}\n` +
@@ -441,6 +499,15 @@
       return;
     }
     
+    // Compute installment details if applicable
+    const depositNow = isInstallments ? computeDepositAmount(totalCost) : totalCost;
+    const months = isInstallments ? (parseInt(installmentMonthsInput.value) || 0) : 0;
+    const monthly = isInstallments ? Math.max(0, Math.ceil((totalCost - depositNow) / Math.max(1, months))) : 0;
+    
+    const planSummary = isInstallments
+      ? `Payment Mode: Installments\nDeposit Now: ${formatCurrency(depositNow)}\nInstallments: ${months} months\nEst. Monthly: ${formatCurrency(monthly)}`
+      : `Payment Mode: Pay in Full`;
+    
     const confirmation = confirm(
       `Confirm purchase for ${buyerName}?\n\n` +
       `ID: ${buyerID}\n` +
@@ -448,15 +515,16 @@
       `Email: ${buyerEmail}\n\n` +
       `Plots: ${plots.join(', ')}\n` +
       `Total Cost: ${formatCurrency(totalCost)}\n` +
+      `${planSummary}\n\n` +
       `Budget Before: ${formatCurrency(remaining)}\n` +
-      `Budget After: ${formatCurrency(remaining - totalCost)}` +
+      `Budget After: ${formatCurrency(remaining - depositNow)}` +
       (note ? `\n\nPurchase Notes: ${note.substring(0, 100)}...` : '')
     );
     
     if (!confirmation) return;
     
     const budgetBefore = remaining;
-    totalSpent += totalCost;
+    totalSpent += depositNow;
     const budgetAfter = budget - totalSpent;
     
     // Get or create buyer
@@ -485,7 +553,10 @@
     plots.forEach(n => soldSet.add(n));
     
     // Save transaction to backend
-    await saveTransaction(buyerInfo, plots, totalCost, note, budgetBefore, budgetAfter);
+    const planNote = isInstallments
+      ? `${note ? note + '\n\n' : ''}[PAYMENT PLAN]\nMode: Installments\nDeposit: ${formatCurrency(depositNow)}\nMonths: ${months}\nEst. Monthly: ${formatCurrency(monthly)}${installmentStartDateInput && installmentStartDateInput.value ? `\nStart: ${installmentStartDateInput.value}` : ''}`
+      : `${note ? note + '\n\n' : ''}[PAYMENT PLAN]\nMode: Pay in Full`;
+    await saveTransaction(buyerInfo, plots, totalCost, planNote, budgetBefore, budgetAfter);
     
     // Re-sync from backend to ensure UI reflects authoritative state
     if (USE_BACKEND && API) {
@@ -493,7 +564,10 @@
     }
 
     // Add to log
-    log(buyerInfo, plots, totalCost, note, budgetBefore, budgetAfter);
+    const logPlan = isInstallments
+      ? `${note ? note + '<br/><br/>' : ''}<div><strong>Mode:</strong> Installments</div><div><strong>Deposit:</strong> ${formatCurrency(depositNow)}</div><div><strong>Months:</strong> ${months}</div><div><strong>Est. Monthly:</strong> ${formatCurrency(monthly)}</div>${installmentStartDateInput && installmentStartDateInput.value ? `<div><strong>Start:</strong> ${installmentStartDateInput.value}</div>` : ''}`
+      : `${note ? note + '<br/><br/>' : ''}<div><strong>Mode:</strong> Pay in Full</div>`;
+    log(buyerInfo, plots, totalCost, logPlan, budgetBefore, budgetAfter);
     
     // Clean up
     selected.clear();
@@ -534,6 +608,41 @@
     buyerIDInput.addEventListener('input', validatePurchase);
     buyerPhoneInput.addEventListener('input', validatePurchase);
     buyerEmailInput.addEventListener('input', validatePurchase);
+
+    // Payment mode toggles
+    if (paymentModeFull && paymentModeInstallments) {
+      paymentModeFull.addEventListener('change', () => {
+        if (paymentModeFull.checked) {
+          installmentFields.style.display = 'none';
+          installmentSummary.style.display = 'none';
+          validatePurchase();
+        }
+      });
+      paymentModeInstallments.addEventListener('change', () => {
+        if (paymentModeInstallments.checked) {
+          installmentFields.style.display = '';
+          updateInstallmentUI(selected.size * PRICE);
+          validatePurchase();
+        }
+      });
+    }
+
+    // Deposit inputs behavior
+    if (depositTypePercent && depositTypeAmount) {
+      const onDepositTypeChange = () => {
+        const isPercent = depositTypePercent.checked;
+        depositPercentInput.disabled = !isPercent;
+        depositAmountInput.disabled = isPercent;
+        updateInstallmentUI(selected.size * PRICE);
+        validatePurchase();
+      };
+      depositTypePercent.addEventListener('change', onDepositTypeChange);
+      depositTypeAmount.addEventListener('change', onDepositTypeChange);
+    }
+
+    if (depositPercentInput) depositPercentInput.addEventListener('input', () => { updateInstallmentUI(selected.size * PRICE); validatePurchase(); });
+    if (depositAmountInput) depositAmountInput.addEventListener('input', () => { updateInstallmentUI(selected.size * PRICE); validatePurchase(); });
+    if (installmentMonthsInput) installmentMonthsInput.addEventListener('input', () => { updateInstallmentUI(selected.size * PRICE); validatePurchase(); });
     
     document.getElementById('clearSelection').addEventListener('click', () => {
       selected.clear();
