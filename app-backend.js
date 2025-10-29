@@ -716,14 +716,26 @@
         const idNumber = (balanceBuyerIdNumberInput && balanceBuyerIdNumberInput.value || '').trim();
         if (!idNumber || !USE_BACKEND || !API) return;
         try {
+          if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Loading...</div>';
           const buyers = await API.getBuyers();
-          const buyer = buyers.find(b => String(b.id_number).trim() === idNumber);
+          // Try several matching strategies for robustness
+          const norm = v => String(v == null ? '' : v).trim();
+          const numeric = v => norm(v).replace(/\D+/g, '');
+          let buyer = buyers.find(b => norm(b.id_number) === idNumber);
+          if (!buyer) buyer = buyers.find(b => numeric(b.id_number) && numeric(b.id_number) === numeric(idNumber));
+          if (!buyer) buyer = buyers.find(b => norm(b.id) === idNumber);
           if (!buyer) {
             if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Buyer not found</div>';
             return;
           }
-          // Try to get buyer's transactions
-          const txs = await API.getTransactions({ buyer_id: buyer.id });
+          // Try to get buyer's transactions with filter; fall back to all
+          let txs = [];
+          try {
+            txs = await API.getTransactions({ buyer_id: buyer.id });
+          } catch (_) {
+            txs = await API.getTransactions({});
+            if (Array.isArray(txs)) txs = txs.filter(t => String(t.buyer_id) === String(buyer.id));
+          }
           if (!Array.isArray(txs) || txs.length === 0) {
             if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">No transactions</div>';
             return;
@@ -731,7 +743,10 @@
           // For each transaction, load payments and compute totals
           const rows = [];
           for (const tx of txs) {
-            const payments = await API.getPayments({ transaction_id: tx.id });
+            let payments = [];
+            try {
+              payments = await API.getPayments({ transaction_id: tx.id });
+            } catch (_) { payments = []; }
             const totalAmount = Number(tx.total_amount || 0);
             const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
             const remaining = Math.max(0, totalAmount - totalPaid);
