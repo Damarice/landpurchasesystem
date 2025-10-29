@@ -81,6 +81,25 @@
   
   // Transaction Log
   const logContainer = document.getElementById('logContainer');
+  
+  // Payments Panel Elements
+  const payTxIdInput = document.getElementById('payTransactionId');
+  const loadTxBtn = document.getElementById('loadTransactionBtn');
+  const recordPaymentBtn = document.getElementById('recordPaymentBtn');
+  const payAmountInput = document.getElementById('payAmount');
+  const payMethodSelect = document.getElementById('payMethod');
+  const payRefInput = document.getElementById('payReference');
+  const payDateInput = document.getElementById('payDate');
+  const paymentSummaryEl = document.getElementById('paymentSummary');
+  const payTotalAmountEl = document.getElementById('payTotalAmount');
+  const payTotalPaidEl = document.getElementById('payTotalPaid');
+  const payRemainingEl = document.getElementById('payRemaining');
+  const paymentsListEl = document.getElementById('paymentsList');
+  
+  // Buyer Balance Elements
+  const balanceBuyerIdNumberInput = document.getElementById('balanceBuyerIdNumber');
+  const loadBuyerBalanceBtn = document.getElementById('loadBuyerBalanceBtn');
+  const buyerBalanceListEl = document.getElementById('buyerBalanceList');
 
   // API instance from global
   const API = (typeof window !== 'undefined' && window.LandPurchaseAPI) ? window.LandPurchaseAPI : null;
@@ -166,13 +185,13 @@
    */
   async function saveTransaction(buyerData, plots, totalCost, note, budgetBefore, budgetAfter) {
     if (!USE_BACKEND || !API || !currentBuyerId) {
-      return;
+      return null;
     }
     
     try {
       const plotIds = plots.join(',');
       
-      await API.createTransaction({
+      const tx = await API.createTransaction({
         buyer_id: currentBuyerId,
         plot_ids: plotIds,
         total_amount: totalCost,
@@ -180,8 +199,10 @@
       });
       
       console.log('✓ Transaction saved to backend');
+      return tx;
     } catch (error) {
       console.error('Failed to save transaction:', error);
+      return null;
     }
   }
 
@@ -556,7 +577,24 @@
     const planNote = isInstallments
       ? `${note ? note + '\n\n' : ''}[PAYMENT PLAN]\nMode: Installments\nDeposit: ${formatCurrency(depositNow)}\nMonths: ${months}\nEst. Monthly: ${formatCurrency(monthly)}${installmentStartDateInput && installmentStartDateInput.value ? `\nStart: ${installmentStartDateInput.value}` : ''}`
       : `${note ? note + '\n\n' : ''}[PAYMENT PLAN]\nMode: Pay in Full`;
-    await saveTransaction(buyerInfo, plots, totalCost, planNote, budgetBefore, budgetAfter);
+    const createdTx = await saveTransaction(buyerInfo, plots, totalCost, planNote, budgetBefore, budgetAfter);
+    // Record deposit as a payment when installments are used
+    if (USE_BACKEND && API && createdTx && createdTx.id) {
+      try {
+        const paymentAmount = isInstallments ? depositNow : totalCost;
+        await API.createPayment({
+          transaction_id: createdTx.id,
+          amount: paymentAmount,
+          method: isInstallments ? 'cash' : 'cash',
+          reference: isInstallments ? 'DEPOSIT' : 'FULL-PAYMENT',
+          paid_at: new Date().toISOString()
+        });
+        const status = paymentAmount >= totalCost ? 'paid' : 'partial';
+        await API.updateTransactionStatus(createdTx.id, status);
+      } catch (err) {
+        console.error('Failed to record initial payment/status:', err);
+      }
+    }
     
     // Re-sync from backend to ensure UI reflects authoritative state
     if (USE_BACKEND && API) {
@@ -644,6 +682,80 @@
     if (depositAmountInput) depositAmountInput.addEventListener('input', () => { updateInstallmentUI(selected.size * PRICE); validatePurchase(); });
     if (installmentMonthsInput) installmentMonthsInput.addEventListener('input', () => { updateInstallmentUI(selected.size * PRICE); validatePurchase(); });
     
+    // Payments panel events
+    if (loadTxBtn) {
+      loadTxBtn.addEventListener('click', async () => {
+        const txId = parseInt(payTxIdInput && payTxIdInput.value);
+        if (!txId || !USE_BACKEND || !API) return;
+        await refreshPaymentsView(txId);
+      });
+    }
+    if (recordPaymentBtn) {
+      recordPaymentBtn.addEventListener('click', async () => {
+        const txId = parseInt(payTxIdInput && payTxIdInput.value);
+        const amount = parseFloat(payAmountInput && payAmountInput.value) || 0;
+        const method = (payMethodSelect && payMethodSelect.value) || 'cash';
+        const reference = (payRefInput && payRefInput.value) || '';
+        const paidAt = (payDateInput && payDateInput.value) ? new Date(payDateInput.value).toISOString() : new Date().toISOString();
+        if (!txId || amount <= 0 || !USE_BACKEND || !API) return;
+        try {
+          await API.createPayment({ transaction_id: txId, amount, method, reference, paid_at: paidAt });
+          // After creating payment, recompute remaining to decide status
+          const { totalAmount, totalPaid } = await refreshPaymentsView(txId);
+          const status = totalPaid >= totalAmount ? 'paid' : 'partial';
+          await API.updateTransactionStatus(txId, status);
+        } catch (err) {
+          console.error('Failed to record payment:', err);
+        }
+      });
+    }
+    
+    // Buyer Balance load
+    if (loadBuyerBalanceBtn) {
+      loadBuyerBalanceBtn.addEventListener('click', async () => {
+        const idNumber = (balanceBuyerIdNumberInput && balanceBuyerIdNumberInput.value || '').trim();
+        if (!idNumber || !USE_BACKEND || !API) return;
+        try {
+          const buyers = await API.getBuyers();
+          const buyer = buyers.find(b => String(b.id_number).trim() === idNumber);
+          if (!buyer) {
+            if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Buyer not found</div>';
+            return;
+          }
+          // Try to get buyer's transactions
+          const txs = await API.getTransactions({ buyer_id: buyer.id });
+          if (!Array.isArray(txs) || txs.length === 0) {
+            if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">No transactions</div>';
+            return;
+          }
+          // For each transaction, load payments and compute totals
+          const rows = [];
+          for (const tx of txs) {
+            const payments = await API.getPayments({ transaction_id: tx.id });
+            const totalAmount = Number(tx.total_amount || 0);
+            const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+            const remaining = Math.max(0, totalAmount - totalPaid);
+            const status = totalPaid >= totalAmount ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid');
+            rows.push(`
+              <div class="log-entry">
+                <div class="log-time">TX #${tx.id}</div>
+                <div class="log-details">
+                  <div><strong>Total:</strong> ${formatCurrency(totalAmount)}</div>
+                  <div><strong>Paid:</strong> ${formatCurrency(totalPaid)}</div>
+                  <div><strong>Remaining:</strong> ${formatCurrency(remaining)}</div>
+                  <div><strong>Status:</strong> ${status}</div>
+                </div>
+              </div>
+            `);
+          }
+          if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = rows.join('');
+        } catch (err) {
+          console.error('Failed to load buyer balance:', err);
+          if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Failed to load</div>';
+        }
+      });
+    }
+    
     document.getElementById('clearSelection').addEventListener('click', () => {
       selected.clear();
       lastSelected = null;
@@ -724,6 +836,43 @@
   // ==========================================
   
   init();
+  
+  // ==========================================
+  // PAYMENTS HELPERS
+  // ==========================================
+  
+  async function refreshPaymentsView(txId) {
+    try {
+      if (!USE_BACKEND || !API) return { totalAmount: 0, totalPaid: 0 };
+      const tx = await API.getTransaction(txId);
+      const payments = await API.getPayments({ transaction_id: txId });
+      const totalAmount = Number(tx.total_amount || 0);
+      const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const remaining = Math.max(0, totalAmount - totalPaid);
+      
+      if (paymentSummaryEl) paymentSummaryEl.style.display = '';
+      if (payTotalAmountEl) payTotalAmountEl.textContent = formatCurrency(totalAmount);
+      if (payTotalPaidEl) payTotalPaidEl.textContent = formatCurrency(totalPaid);
+      if (payRemainingEl) payRemainingEl.textContent = formatCurrency(remaining);
+      if (recordPaymentBtn) recordPaymentBtn.disabled = false;
+      
+      if (paymentsListEl) {
+        if (!payments.length) {
+          paymentsListEl.innerHTML = '<div class="log-empty">No payments found</div>';
+        } else {
+          paymentsListEl.innerHTML = payments.map(p => {
+            const when = p.paid_at ? new Date(p.paid_at).toLocaleString() : '';
+            return `<div class="log-entry"><div class="log-time">${when}</div><div class="log-details"><strong>${formatCurrency(Number(p.amount||0))}</strong> · ${p.method || 'unknown'}${p.reference ? ` · ${p.reference}` : ''}</div></div>`;
+          }).join('');
+        }
+      }
+      
+      return { totalAmount, totalPaid };
+    } catch (err) {
+      console.error('Failed to load payments/transaction:', err);
+      return { totalAmount: 0, totalPaid: 0 };
+    }
+  }
   
   // ==========================================
   // DEBUG API (Window Object)

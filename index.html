@@ -229,6 +229,76 @@
       </div>
     </div>
 
+    <!-- Payments Panel -->
+    <div class="buyer-section" id="paymentsPanel">
+      <div class="buyer-header">💰 Record Payment</div>
+      <div class="form-group">
+        <label>Transaction ID *</label>
+        <input type="number" id="payTransactionId" placeholder="e.g., 123" />
+      </div>
+      <div class="form-group">
+        <button class="ghost" id="loadTransactionBtn">Load Transaction</button>
+      </div>
+      <div class="budget-display" id="paymentSummary" style="display:none">
+        <div>
+          <div class="budget-label">Total Amount</div>
+          <div class="budget-amount" id="payTotalAmount">KES 0</div>
+        </div>
+        <div>
+          <div class="budget-label">Total Paid</div>
+          <div class="budget-amount" id="payTotalPaid">KES 0</div>
+        </div>
+        <div>
+          <div class="budget-label">Remaining Balance</div>
+          <div class="budget-amount" id="payRemaining">KES 0</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Amount *</label>
+        <input type="number" id="payAmount" min="0" step="100" placeholder="e.g., 20000" />
+      </div>
+      <div class="form-group">
+        <label>Method</label>
+        <select id="payMethod">
+          <option value="cash">Cash</option>
+          <option value="mpesa">M-Pesa</option>
+          <option value="card">Card</option>
+          <option value="bank">Bank</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Reference</label>
+        <input type="text" id="payReference" placeholder="e.g., MPESA-XYZ123" />
+      </div>
+      <div class="form-group">
+        <label>Payment Date</label>
+        <input type="date" id="payDate" />
+      </div>
+      <div class="action-group">
+        <button id="recordPaymentBtn" disabled>Record Payment</button>
+      </div>
+      <div class="log-section" style="margin-top: 8px;">
+        <div class="log-header"><span>Payments</span></div>
+        <div class="log-container" id="paymentsList"><div class="log-empty">No payments loaded</div></div>
+      </div>
+    </div>
+
+    <!-- Buyer Balance Panel -->
+    <div class="buyer-section" id="buyerBalancePanel">
+      <div class="buyer-header">📊 Buyer Balance</div>
+      <div class="form-group">
+        <label>Buyer ID / Passport Number *</label>
+        <input type="text" id="balanceBuyerIdNumber" placeholder="e.g., 12345678" />
+      </div>
+      <div class="form-group">
+        <button class="ghost" id="loadBuyerBalanceBtn">Load Balance</button>
+      </div>
+      <div class="log-section" style="margin-top: 8px;">
+        <div class="log-header"><span>Transactions</span></div>
+        <div class="log-container" id="buyerBalanceList"><div class="log-empty">No data</div></div>
+      </div>
+    </div>
+
     <!-- Footer Notice -->
     <footer>
       <strong>Demo Mode Notice:</strong> This is a prototype interface. For production deployment, integrate: KYC verification, secure payment gateway, legal title registry, and escrow services.
