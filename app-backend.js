@@ -54,15 +54,10 @@
   
   // Buyer Form Inputs
   const buyerNameInput = document.getElementById('buyerName');
-  const buyerIDInput = document.getElementById('buyerID');
   const buyerPhoneInput = document.getElementById('buyerPhone');
-  const buyerEmailInput = document.getElementById('buyerEmail');
-  const buyerAddressInput = document.getElementById('buyerAddress');
-  const buyerOccupationInput = document.getElementById('buyerOccupation');
-  const buyerBudgetInput = document.getElementById('buyerBudget');
+  const buyerIDInput = document.getElementById('buyerID');
   
-  // Budget Display
-  const remainingBudgetEl = document.getElementById('remainingBudget');
+
   
   // Payment Controls
   const paymentModeFull = document.getElementById('paymentModeFull');
@@ -100,6 +95,16 @@
   const balanceBuyerIdNumberInput = document.getElementById('balanceBuyerIdNumber');
   const loadBuyerBalanceBtn = document.getElementById('loadBuyerBalanceBtn');
   const buyerBalanceListEl = document.getElementById('buyerBalanceList');
+
+  // Payment Report Elements
+  const generateReportBtn = document.getElementById('generateReportBtn');
+  const exportReportBtn = document.getElementById('exportReportBtn');
+  const reportStats = document.getElementById('reportStats');
+  const totalSalesAmountEl = document.getElementById('totalSalesAmount');
+  const totalPaidAmountEl = document.getElementById('totalPaidAmount');
+  const totalOutstandingAmountEl = document.getElementById('totalOutstandingAmount');
+  const totalPlotsSoldEl = document.getElementById('totalPlotsSold');
+  const paymentReportListEl = document.getElementById('paymentReportList');
 
   // API instance from global
   const API = (typeof window !== 'undefined' && window.LandPurchaseAPI) ? window.LandPurchaseAPI : null;
@@ -142,19 +147,15 @@
    */
   async function getOrCreateBuyer() {
     const name = buyerNameInput.value.trim();
-    const idNumber = buyerIDInput.value.trim();
     const phone = buyerPhoneInput.value.trim();
-    const email = buyerEmailInput.value.trim();
-    const address = buyerAddressInput.value.trim();
-    const occupation = buyerOccupationInput.value.trim();
-    const budget = parseFloat(buyerBudgetInput.value) || 0;
+    const idNumber = buyerIDInput.value.trim();
     
-    if (!name || !idNumber || !phone || !email || !USE_BACKEND || !API) {
+    if (!name || !phone || !idNumber || !USE_BACKEND || !API) {
       return null;
     }
     
     try {
-      // Try to find existing buyer
+      // Try to find existing buyer by ID number
       const buyers = await API.getBuyers();
       let buyer = buyers.find(b => b.id_number === idNumber);
       
@@ -164,10 +165,10 @@
           name,
           id_number: idNumber,
           phone,
-          email,
-          address,
-          occupation,
-          budget
+          email: '', // Empty email
+          address: '', // Empty address
+          occupation: '', // Empty occupation
+          budget: 0 // No budget tracking
         });
         console.log('✓ New buyer created:', buyer.id);
       }
@@ -217,7 +218,6 @@
     await loadPlots();
     setupEventListeners();
     render();
-    updateBudgetDisplay();
   }
 
   // ==========================================
@@ -264,30 +264,7 @@
     if (installmentSummary) installmentSummary.style.display = totalCost > 0 ? '' : 'none';
   }
 
-  // ==========================================
-  // BUDGET MANAGEMENT
-  // ==========================================
-  
-  /**
-   * Update the remaining budget display
-   */
-  function updateBudgetDisplay() {
-    const budget = parseFloat(buyerBudgetInput.value) || 0;
-    currentBudget = budget;
-    const remaining = budget - totalSpent;
-    
-    remainingBudgetEl.innerText = formatCurrency(remaining);
-    
-    remainingBudgetEl.classList.remove('low', 'critical');
-    
-    if (remaining < PRICE) {
-      remainingBudgetEl.classList.add('critical');
-    } else if (remaining < PRICE * 5) {
-      remainingBudgetEl.classList.add('low');
-    }
-    
-    validatePurchase();
-  }
+
 
   // ==========================================
   // FORM VALIDATION
@@ -298,26 +275,12 @@
    */
   function validatePurchase() {
     const selectedCount = selected.size;
-    const totalCost = selectedCount * PRICE;
-    const budget = parseFloat(buyerBudgetInput.value) || 0;
-    const remaining = budget - totalSpent;
     
     const hasName = buyerNameInput.value.trim().length > 0;
-    const hasID = buyerIDInput.value.trim().length > 0;
     const hasPhone = buyerPhoneInput.value.trim().length > 0;
-    const hasEmail = buyerEmailInput.value.trim().length > 0;
+    const hasID = buyerIDInput.value.trim().length > 0;
     
-    let paymentValid = false;
-    const isInstallments = paymentModeInstallments && paymentModeInstallments.checked;
-    if (!isInstallments) {
-      paymentValid = totalCost <= remaining;
-    } else {
-      const depositNow = computeDepositAmount(totalCost);
-      const months = parseInt(installmentMonthsInput && installmentMonthsInput.value) || 0;
-      paymentValid = depositNow > 0 && depositNow <= remaining && months >= 2;
-    }
-    
-    const isValid = selectedCount > 0 && hasName && hasID && hasPhone && hasEmail && paymentValid;
+    const isValid = selectedCount > 0 && hasName && hasPhone && hasID;
     
     buyBtn.disabled = !isValid;
   }
@@ -439,7 +402,7 @@
   /**
    * Add a transaction to the history log
    */
-  function log(buyerData, plots, totalCost, bespokePlan, budgetBefore, budgetAfter) {
+  function log(buyerData, plots, totalCost, note, budgetBefore, budgetAfter) {
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     const time = new Date().toLocaleTimeString();
@@ -451,28 +414,16 @@
       <div class="log-details" style="font-size: 11px; line-height: 1.6; margin-bottom: 8px;">
         <div><strong>ID:</strong> ${buyerData.id}</div>
         <div><strong>Phone:</strong> ${buyerData.phone}</div>
-        <div><strong>Email:</strong> ${buyerData.email}</div>
-        ${buyerData.address ? `<div><strong>Address:</strong> ${buyerData.address}</div>` : ''}
-        ${buyerData.occupation ? `<div><strong>Occupation:</strong> ${buyerData.occupation}</div>` : ''}
+        <div><strong>Plot Numbers:</strong> ${buyerData.plots}</div>
       </div>
       <div class="log-details">
         Purchased ${plots.length} plot${plots.length > 1 ? 's' : ''}: ${plots.join(', ')}
       </div>
-      ${bespokePlan ? `<div class="payment-plan"><div class="payment-plan-title">Purchase Notes:</div>${bespokePlan}</div>` : ''}
+      ${note ? `<div class="payment-plan"><div class="payment-plan-title">Purchase Notes:</div>${note}</div>` : ''}
       <div class="log-budget">
         <div class="log-budget-item">
           <span class="log-budget-label">Purchase Amount</span>
           <span class="log-budget-value">${formatCurrency(totalCost)}</span>
-        </div>
-        <div class="log-budget-item">
-          <span class="log-budget-label">Budget Before</span>
-          <span class="log-budget-value">${formatCurrency(budgetBefore)}</span>
-        </div>
-        <div class="log-budget-item">
-          <span class="log-budget-label">Budget After</span>
-          <span class="log-budget-value" style="color: ${budgetAfter < PRICE ? 'var(--danger)' : 'var(--success)'}">
-            ${formatCurrency(budgetAfter)}
-          </span>
         </div>
       </div>
     `;
@@ -494,59 +445,28 @@
     if (selected.size === 0) return;
     
     const buyerName = buyerNameInput.value.trim();
-    const buyerID = buyerIDInput.value.trim();
     const buyerPhone = buyerPhoneInput.value.trim();
-    const buyerEmail = buyerEmailInput.value.trim();
+    const buyerID = buyerIDInput.value.trim();
     
-    if (!buyerName || !buyerID || !buyerPhone || !buyerEmail) {
-      alert('Please fill in all required fields:\n- Full Name\n- ID/Passport Number\n- Phone Number\n- Email Address');
+    if (!buyerName || !buyerPhone || !buyerID) {
+      alert('Please fill in all required fields:\n- Full Name\n- Phone Number\n- ID Number');
       return;
     }
     
     const plots = [...selected].sort((a, b) => a - b);
     const totalCost = plots.length * PRICE;
-    const budget = parseFloat(buyerBudgetInput.value) || 0;
-    const remaining = budget - totalSpent;
     const note = document.getElementById('bespokeNote').value.trim();
-    const isInstallments = paymentModeInstallments && paymentModeInstallments.checked;
-    
-    if (!isInstallments && totalCost > remaining) {
-      alert(
-        `Insufficient budget!\n\n` +
-        `Selected plots cost: ${formatCurrency(totalCost)}\n` +
-        `Remaining budget: ${formatCurrency(remaining)}\n` +
-        `Shortfall: ${formatCurrency(totalCost - remaining)}`
-      );
-      return;
-    }
-    
-    // Compute installment details if applicable
-    const depositNow = isInstallments ? computeDepositAmount(totalCost) : totalCost;
-    const months = isInstallments ? (parseInt(installmentMonthsInput.value) || 0) : 0;
-    const monthly = isInstallments ? Math.max(0, Math.ceil((totalCost - depositNow) / Math.max(1, months))) : 0;
-    
-    const planSummary = isInstallments
-      ? `Payment Mode: Installments\nDeposit Now: ${formatCurrency(depositNow)}\nInstallments: ${months} months\nEst. Monthly: ${formatCurrency(monthly)}`
-      : `Payment Mode: Pay in Full`;
     
     const confirmation = confirm(
       `Confirm purchase for ${buyerName}?\n\n` +
       `ID: ${buyerID}\n` +
-      `Phone: ${buyerPhone}\n` +
-      `Email: ${buyerEmail}\n\n` +
+      `Phone: ${buyerPhone}\n\n` +
       `Plots: ${plots.join(', ')}\n` +
-      `Total Cost: ${formatCurrency(totalCost)}\n` +
-      `${planSummary}\n\n` +
-      `Budget Before: ${formatCurrency(remaining)}\n` +
-      `Budget After: ${formatCurrency(remaining - depositNow)}` +
+      `Total Cost: ${formatCurrency(totalCost)}` +
       (note ? `\n\nPurchase Notes: ${note.substring(0, 100)}...` : '')
     );
     
     if (!confirmation) return;
-    
-    const budgetBefore = remaining;
-    totalSpent += depositNow;
-    const budgetAfter = budget - totalSpent;
     
     // Get or create buyer
     const buyerData = await getOrCreateBuyer();
@@ -555,9 +475,7 @@
       name: buyerName,
       id: buyerID,
       phone: buyerPhone,
-      email: buyerEmail,
-      address: buyerAddressInput.value.trim(),
-      occupation: buyerOccupationInput.value.trim()
+      plots: plots.join(', ') // Include plot numbers in buyer info
     };
     
     // Mark plots as sold in backend
@@ -574,27 +492,7 @@
     plots.forEach(n => soldSet.add(n));
     
     // Save transaction to backend
-    const planNote = isInstallments
-      ? `${note ? note + '\n\n' : ''}[PAYMENT PLAN]\nMode: Installments\nDeposit: ${formatCurrency(depositNow)}\nMonths: ${months}\nEst. Monthly: ${formatCurrency(monthly)}${installmentStartDateInput && installmentStartDateInput.value ? `\nStart: ${installmentStartDateInput.value}` : ''}`
-      : `${note ? note + '\n\n' : ''}[PAYMENT PLAN]\nMode: Pay in Full`;
-    const createdTx = await saveTransaction(buyerInfo, plots, totalCost, planNote, budgetBefore, budgetAfter);
-    // Record deposit as a payment when installments are used
-    if (USE_BACKEND && API && createdTx && createdTx.id) {
-      try {
-        const paymentAmount = isInstallments ? depositNow : totalCost;
-        await API.createPayment({
-          transaction_id: createdTx.id,
-          amount: paymentAmount,
-          method: isInstallments ? 'cash' : 'cash',
-          reference: isInstallments ? 'DEPOSIT' : 'FULL-PAYMENT',
-          paid_at: new Date().toISOString()
-        });
-        const status = paymentAmount >= totalCost ? 'paid' : 'partial';
-        await API.updateTransactionStatus(createdTx.id, status);
-      } catch (err) {
-        console.error('Failed to record initial payment/status:', err);
-      }
-    }
+    const createdTx = await saveTransaction(buyerInfo, plots, totalCost, note, 0, 0);
     
     // Re-sync from backend to ensure UI reflects authoritative state
     if (USE_BACKEND && API) {
@@ -602,17 +500,13 @@
     }
 
     // Add to log
-    const logPlan = isInstallments
-      ? `${note ? note + '<br/><br/>' : ''}<div><strong>Mode:</strong> Installments</div><div><strong>Deposit:</strong> ${formatCurrency(depositNow)}</div><div><strong>Months:</strong> ${months}</div><div><strong>Est. Monthly:</strong> ${formatCurrency(monthly)}</div>${installmentStartDateInput && installmentStartDateInput.value ? `<div><strong>Start:</strong> ${installmentStartDateInput.value}</div>` : ''}`
-      : `${note ? note + '<br/><br/>' : ''}<div><strong>Mode:</strong> Pay in Full</div>`;
-    log(buyerInfo, plots, totalCost, logPlan, budgetBefore, budgetAfter);
+    log(buyerInfo, plots, totalCost, note, 0, 0);
     
     // Clean up
     selected.clear();
     document.getElementById('bespokeNote').value = '';
     lastSelected = null;
     
-    updateBudgetDisplay();
     render();
     
     // Show toast success message
@@ -641,11 +535,9 @@
     
     buyBtn.addEventListener('click', buySelected);
     
-    buyerBudgetInput.addEventListener('input', updateBudgetDisplay);
     buyerNameInput.addEventListener('input', validatePurchase);
-    buyerIDInput.addEventListener('input', validatePurchase);
     buyerPhoneInput.addEventListener('input', validatePurchase);
-    buyerEmailInput.addEventListener('input', validatePurchase);
+    buyerIDInput.addEventListener('input', validatePurchase);
 
     // Payment mode toggles
     if (paymentModeFull && paymentModeInstallments) {
@@ -718,12 +610,8 @@
         try {
           if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Loading...</div>';
           const buyers = await API.getBuyers();
-          // Try several matching strategies for robustness
-          const norm = v => String(v == null ? '' : v).trim();
-          const numeric = v => norm(v).replace(/\D+/g, '');
-          let buyer = buyers.find(b => norm(b.id_number) === idNumber);
-          if (!buyer) buyer = buyers.find(b => numeric(b.id_number) && numeric(b.id_number) === numeric(idNumber));
-          if (!buyer) buyer = buyers.find(b => norm(b.id) === idNumber);
+          // Search by ID number
+          let buyer = buyers.find(b => b.id_number === idNumber);
           if (!buyer) {
             if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Buyer not found</div>';
             return;
@@ -751,10 +639,12 @@
             const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
             const remaining = Math.max(0, totalAmount - totalPaid);
             const status = totalPaid >= totalAmount ? 'Paid' : (totalPaid > 0 ? 'Partial' : 'Unpaid');
+            const plotNumbers = tx.plot_ids || 'N/A';
             rows.push(`
               <div class="log-entry">
                 <div class="log-time">TX #${tx.id}</div>
                 <div class="log-details">
+                  <div><strong>Plot Numbers:</strong> ${plotNumbers}</div>
                   <div><strong>Total:</strong> ${formatCurrency(totalAmount)}</div>
                   <div><strong>Paid:</strong> ${formatCurrency(totalPaid)}</div>
                   <div><strong>Remaining:</strong> ${formatCurrency(remaining)}</div>
@@ -768,6 +658,19 @@
           console.error('Failed to load buyer balance:', err);
           if (buyerBalanceListEl) buyerBalanceListEl.innerHTML = '<div class="log-empty">Failed to load</div>';
         }
+      });
+    }
+
+    // Payment Report Generation
+    if (generateReportBtn) {
+      generateReportBtn.addEventListener('click', async () => {
+        await generatePaymentReport();
+      });
+    }
+
+    if (exportReportBtn) {
+      exportReportBtn.addEventListener('click', () => {
+        exportPaymentReport();
       });
     }
     
@@ -786,17 +689,12 @@
       totalSpent = 0;
       
       buyerNameInput.value = '';
-      buyerIDInput.value = '';
       buyerPhoneInput.value = '';
-      buyerEmailInput.value = '';
-      buyerAddressInput.value = '';
-      buyerOccupationInput.value = '';
-      buyerBudgetInput.value = '';
+      buyerIDInput.value = '';
       document.getElementById('bespokeNote').value = '';
       
       logContainer.innerHTML = '<div class="log-empty">No transactions yet</div>';
       
-      updateBudgetDisplay();
       render();
       
       // Reload plots from backend
@@ -855,6 +753,174 @@
   // ==========================================
   // PAYMENTS HELPERS
   // ==========================================
+
+  /**
+   * Generate comprehensive payment report
+   */
+  async function generatePaymentReport() {
+    if (!USE_BACKEND || !API) {
+      if (paymentReportListEl) paymentReportListEl.innerHTML = '<div class="log-empty">Backend not available</div>';
+      return;
+    }
+
+    try {
+      if (paymentReportListEl) paymentReportListEl.innerHTML = '<div class="log-empty">Generating report...</div>';
+      
+      // Get all transactions and buyers
+      const [transactions, buyers] = await Promise.all([
+        API.getTransactions(),
+        API.getBuyers()
+      ]);
+
+      if (!Array.isArray(transactions) || transactions.length === 0) {
+        if (paymentReportListEl) paymentReportListEl.innerHTML = '<div class="log-empty">No transactions found</div>';
+        return;
+      }
+
+      // Create buyer lookup map
+      const buyerMap = {};
+      buyers.forEach(buyer => {
+        buyerMap[buyer.id] = buyer;
+      });
+
+      let totalSales = 0;
+      let totalPaid = 0;
+      let totalOutstanding = 0;
+      let totalPlots = 0;
+      const reportRows = [];
+
+      // Process each transaction
+      for (const tx of transactions) {
+        const buyer = buyerMap[tx.buyer_id] || { name: 'Unknown', phone: 'N/A', id_number: 'N/A' };
+        const txAmount = Number(tx.total_amount || 0);
+        
+        // Get payments for this transaction
+        let payments = [];
+        try {
+          payments = await API.getPayments({ transaction_id: tx.id });
+        } catch (_) { payments = []; }
+        
+        const paidAmount = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        const outstanding = Math.max(0, txAmount - paidAmount);
+        const status = paidAmount >= txAmount ? 'Paid' : (paidAmount > 0 ? 'Partial' : 'Unpaid');
+        const plotCount = tx.plot_ids ? tx.plot_ids.split(',').length : 0;
+
+        // Update totals
+        totalSales += txAmount;
+        totalPaid += paidAmount;
+        totalOutstanding += outstanding;
+        totalPlots += plotCount;
+
+        // Create report row
+        reportRows.push(`
+          <div class="log-entry">
+            <div class="log-time">TX #${tx.id} - ${buyer.name}</div>
+            <div class="log-details">
+              <div><strong>ID:</strong> ${buyer.id_number}</div>
+              <div><strong>Phone:</strong> ${buyer.phone}</div>
+              <div><strong>Plot Numbers:</strong> ${tx.plot_ids || 'N/A'}</div>
+              <div><strong>Plots Count:</strong> ${plotCount}</div>
+              <div><strong>Total Amount:</strong> ${formatCurrency(txAmount)}</div>
+              <div><strong>Amount Paid:</strong> ${formatCurrency(paidAmount)}</div>
+              <div><strong>Outstanding:</strong> ${formatCurrency(outstanding)}</div>
+              <div><strong>Status:</strong> <span style="color: ${status === 'Paid' ? 'var(--success)' : status === 'Partial' ? 'var(--warning)' : 'var(--danger)'};">${status}</span></div>
+            </div>
+          </div>
+        `);
+      }
+
+      // Update summary statistics
+      if (totalSalesAmountEl) totalSalesAmountEl.textContent = formatCurrency(totalSales);
+      if (totalPaidAmountEl) totalPaidAmountEl.textContent = formatCurrency(totalPaid);
+      if (totalOutstandingAmountEl) totalOutstandingAmountEl.textContent = formatCurrency(totalOutstanding);
+      if (totalPlotsSoldEl) totalPlotsSoldEl.textContent = totalPlots.toString();
+
+      // Show statistics and export button
+      if (reportStats) reportStats.style.display = '';
+      if (exportReportBtn) exportReportBtn.style.display = '';
+
+      // Display report
+      if (paymentReportListEl) {
+        paymentReportListEl.innerHTML = reportRows.length > 0 ? reportRows.join('') : '<div class="log-empty">No data to display</div>';
+      }
+
+      console.log('✓ Payment report generated successfully');
+    } catch (error) {
+      console.error('Failed to generate payment report:', error);
+      if (paymentReportListEl) paymentReportListEl.innerHTML = '<div class="log-empty">Failed to generate report</div>';
+    }
+  }
+
+  /**
+   * Export payment report as CSV
+   */
+  function exportPaymentReport() {
+    if (!USE_BACKEND || !API) return;
+
+    try {
+      // Get data from the current report display
+      const reportEntries = document.querySelectorAll('#paymentReportList .log-entry');
+      if (reportEntries.length === 0) {
+        alert('No report data to export. Please generate a report first.');
+        return;
+      }
+
+      // Create CSV content
+      let csvContent = 'Transaction ID,Buyer Name,ID Number,Phone,Plot Numbers,Plot Count,Total Amount,Amount Paid,Outstanding,Status\n';
+      
+      reportEntries.forEach(entry => {
+        const timeEl = entry.querySelector('.log-time');
+        const detailsEl = entry.querySelector('.log-details');
+        
+        if (timeEl && detailsEl) {
+          const txMatch = timeEl.textContent.match(/TX #(\d+) - (.+)/);
+          const txId = txMatch ? txMatch[1] : '';
+          const buyerName = txMatch ? txMatch[2] : '';
+          
+          const details = detailsEl.textContent;
+          const idMatch = details.match(/ID:\s*([^\n]+)/);
+          const phoneMatch = details.match(/Phone:\s*([^\n]+)/);
+          const plotsMatch = details.match(/Plot Numbers:\s*([^\n]+)/);
+          const countMatch = details.match(/Plots Count:\s*([^\n]+)/);
+          const totalMatch = details.match(/Total Amount:\s*([^\n]+)/);
+          const paidMatch = details.match(/Amount Paid:\s*([^\n]+)/);
+          const outstandingMatch = details.match(/Outstanding:\s*([^\n]+)/);
+          const statusMatch = details.match(/Status:\s*([^\n]+)/);
+
+          const row = [
+            txId,
+            `"${buyerName}"`,
+            idMatch ? idMatch[1].trim() : '',
+            phoneMatch ? phoneMatch[1].trim() : '',
+            `"${plotsMatch ? plotsMatch[1].trim() : ''}"`,
+            countMatch ? countMatch[1].trim() : '',
+            totalMatch ? totalMatch[1].trim() : '',
+            paidMatch ? paidMatch[1].trim() : '',
+            outstandingMatch ? outstandingMatch[1].trim() : '',
+            statusMatch ? statusMatch[1].trim() : ''
+          ].join(',');
+          
+          csvContent += row + '\n';
+        }
+      });
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `payment_report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      console.log('✓ Payment report exported successfully');
+    } catch (error) {
+      console.error('Failed to export payment report:', error);
+      alert('Failed to export report. Please try again.');
+    }
+  }
   
   async function refreshPaymentsView(txId) {
     try {

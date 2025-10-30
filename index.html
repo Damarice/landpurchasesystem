@@ -85,43 +85,15 @@
       </div>
       
       <div class="form-group">
-        <label>National ID / Passport Number *</label>
-        <input type="text" id="buyerID" placeholder="e.g., 12345678" />
-      </div>
-      
-      <div class="form-group">
         <label>Phone Number *</label>
         <input type="tel" id="buyerPhone" placeholder="e.g., +254712345678" />
       </div>
       
       <div class="form-group">
-        <label>Email Address *</label>
-        <input type="email" id="buyerEmail" placeholder="e.g., buyer@example.com" />
+        <label>ID Number *</label>
+        <input type="text" id="buyerID" placeholder="e.g., 12345678" />
       </div>
-      
-      <div class="form-group">
-        <label>Physical Address</label>
-        <textarea id="buyerAddress" placeholder="Street address, city, postal code" style="min-height: 60px;"></textarea>
-      </div>
-      
-      <div class="form-group">
-        <label>Occupation</label>
-        <input type="text" id="buyerOccupation" placeholder="e.g., Business Owner, Teacher" />
-      </div>
-      
-      <div class="form-group">
-        <label>Budget (KES) *</label>
-        <input type="number" id="buyerBudget" placeholder="e.g., 5000000" min="0" step="10000" />
-      </div>
-      
-      <!-- Remaining Budget Display -->
-      <div class="budget-display">
-        <div>
-          <div class="budget-label">Remaining Budget</div>
-          <div class="budget-amount" id="remainingBudget">KES 0</div>
-        </div>
-      </div>
-    </div>
+    </div></div>
 
     <!-- Selection Summary Card -->
     <div class="selection-summary" id="summaryCard">
@@ -287,7 +259,7 @@
     <div class="buyer-section" id="buyerBalancePanel">
       <div class="buyer-header">📊 Buyer Balance</div>
       <div class="form-group">
-        <label>Buyer ID / Passport Number *</label>
+        <label>Buyer ID Number *</label>
         <input type="text" id="balanceBuyerIdNumber" placeholder="e.g., 12345678" />
       </div>
       <div class="form-group">
@@ -296,6 +268,43 @@
       <div class="log-section" style="margin-top: 8px;">
         <div class="log-header"><span>Transactions</span></div>
         <div class="log-container" id="buyerBalanceList"><div class="log-empty">No data</div></div>
+      </div>
+    </div>
+
+    <!-- Payment Summary Report Panel -->
+    <div class="buyer-section" id="paymentSummaryPanel">
+      <div class="buyer-header">📊 Payment Summary Report</div>
+      <div class="form-group">
+        <button class="ghost" id="generateReportBtn">Generate Report</button>
+      </div>
+      
+      <!-- Summary Statistics -->
+      <div class="stats-grid" id="reportStats" style="display:none; margin-top: 12px;">
+        <div class="stat-card">
+          <div class="stat-label">Total Sales</div>
+          <div class="stat-value" id="totalSalesAmount">KES 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Paid</div>
+          <div class="stat-value" id="totalPaidAmount">KES 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Outstanding</div>
+          <div class="stat-value" id="totalOutstandingAmount">KES 0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Plots Sold</div>
+          <div class="stat-value" id="totalPlotsSold">0</div>
+        </div>
+      </div>
+      
+      <!-- Detailed Report -->
+      <div class="log-section" style="margin-top: 8px;">
+        <div class="log-header">
+          <span>Payment Details</span>
+          <button id="exportReportBtn" class="ghost" style="padding: 4px 8px; font-size: 11px; display:none;">Export</button>
+        </div>
+        <div class="log-container" id="paymentReportList"><div class="log-empty">Click Generate Report</div></div>
       </div>
     </div>
 

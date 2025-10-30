@@ -603,32 +603,513 @@ footer {
 }
 
 /* ============================================
-   RESPONSIVE DESIGN - TABLET
+   RESPONSIVE DESIGN - LARGE DESKTOP
    ============================================ */
-@media (max-width: 1200px) {
+@media (min-width: 1400px) {
     .layout {
-        grid-template-columns: 1fr; /* Stack layout vertically */
+        grid-template-columns: 1fr 400px; /* Wider sidebar on large screens */
+    }
+    
+    :root {
+        --plot-size: 48px; /* Larger plots on big screens */
     }
 }
 
 /* ============================================
-   RESPONSIVE DESIGN - MOBILE
+   RESPONSIVE DESIGN - DESKTOP
    ============================================ */
-@media (max-width: 640px) {
+@media (max-width: 1200px) {
+    .layout {
+        grid-template-columns: 1fr 340px; /* Narrower sidebar */
+    }
+    
+    :root {
+        --plot-size: 38px; /* Smaller plots */
+    }
+    
+    .sidebar {
+        position: static; /* Remove sticky on smaller screens */
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - TABLET LANDSCAPE
+   ============================================ */
+@media (max-width: 1024px) {
+    body {
+        padding: 12px;
+    }
+    
+    .layout {
+        grid-template-columns: 1fr; /* Stack layout vertically */
+        gap: 16px;
+    }
+    
+    :root {
+        --plot-size: 36px;
+        --gap: 4px;
+    }
+    
+    .map {
+        padding: 16px;
+    }
+    
+    .sidebar {
+        padding: 16px;
+        position: static;
+        top: auto;
+    }
+    
+    .grid {
+        grid-template-columns: repeat(20, var(--plot-size));
+    }
+    
+    .grid-wrapper {
+        overflow-x: auto;
+        padding-bottom: 8px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr); /* 4 columns on tablet */
+        gap: 8px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - TABLET PORTRAIT
+   ============================================ */
+@media (max-width: 768px) {
     header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 8px;
+    }
+    
+    h1 {
+        font-size: 22px;
+    }
+    
+    .controls {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    :root {
+        --plot-size: 32px;
+        --gap: 3px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr 1fr; /* 2 columns on tablet portrait */
+    }
+    
+    .buyer-section {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .selection-summary {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .selection-cost {
+        font-size: 24px;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .bulk-actions button {
+        flex: none;
+        width: 100%;
+    }
+    
+    .legend {
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .legend-item {
+        font-size: 11px;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE LANDSCAPE
+   ============================================ */
+@media (max-width: 640px) {
+    body {
+        padding: 8px;
+    }
+    
+    header {
+        margin-bottom: 16px;
     }
     
     h1 {
         font-size: 20px;
     }
     
-    .controls {
-        width: 100%;
+    .layout {
+        gap: 12px;
+    }
+    
+    :root {
+        --plot-size: 28px;
+        --gap: 2px;
+    }
+    
+    .map {
+        padding: 12px;
+        border-radius: 12px;
+    }
+    
+    .sidebar {
+        padding: 12px;
+        border-radius: 12px;
     }
     
     .stats-grid {
-        grid-template-columns: 1fr; /* Stack stats vertically */
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    .stat-card {
+        padding: 10px;
+    }
+    
+    .stat-value {
+        font-size: 18px;
+    }
+    
+    .buyer-section {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .selection-summary {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .selection-cost {
+        font-size: 20px;
+    }
+    
+    .form-group {
+        margin-bottom: 12px;
+    }
+    
+    input, textarea {
+        padding: 8px 10px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+    
+    button {
+        padding: 12px 14px;
+        font-size: 14px;
+        border-radius: 6px;
+    }
+    
+    .action-group button {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
+    .log-container {
+        max-height: 200px;
+        padding: 8px;
+    }
+    
+    .log-entry {
+        padding: 8px;
+        margin-bottom: 6px;
+    }
+    
+    .toast {
+        right: 8px;
+        bottom: 8px;
+        left: 8px;
+        right: 8px;
+        text-align: center;
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - MOBILE PORTRAIT
+   ============================================ */
+@media (max-width: 480px) {
+    :root {
+        --plot-size: 24px;
+        --gap: 2px;
+    }
+    
+    .grid {
+        grid-template-columns: repeat(10, var(--plot-size)); /* 10x20 grid on mobile */
+        grid-template-rows: repeat(20, var(--plot-size));
+    }
+    
+    .plot {
+        font-size: 9px;
+        border-radius: 4px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr; /* Single column on small mobile */
+    }
+    
+    .stat-card {
+        padding: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 16px;
+    }
+    
+    .legend {
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .legend-item {
+        font-size: 10px;
+    }
+    
+    .legend-color {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .view-controls button {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+    
+    .bulk-actions button {
+        padding: 6px;
+        font-size: 12px;
+    }
+    
+    .buyer-header {
+        font-size: 12px;
+    }
+    
+    .selection-title {
+        font-size: 12px;
+    }
+    
+    .selection-cost {
+        font-size: 18px;
+    }
+    
+    .selection-plots {
+        font-size: 12px;
+    }
+    
+    .budget-amount {
+        font-size: 16px;
+    }
+    
+    .log-budget {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .log-budget-item {
+        text-align: center;
+    }
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - VERY SMALL MOBILE
+   ============================================ */
+@media (max-width: 360px) {
+    body {
+        padding: 4px;
+    }
+    
+    :root {
+        --plot-size: 20px;
+        --gap: 1px;
+    }
+    
+    h1 {
+        font-size: 18px;
+    }
+    
+    .map {
+        padding: 8px;
+    }
+    
+    .sidebar {
+        padding: 8px;
+    }
+    
+    .plot {
+        font-size: 8px;
+    }
+    
+    .buyer-section {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .selection-summary {
+        padding: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .form-group {
+        margin-bottom: 8px;
+    }
+    
+    input, textarea {
+        padding: 6px 8px;
+    }
+    
+    button {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+    
+    .stat-card {
+        padding: 6px;
+    }
+    
+    .stat-value {
+        font-size: 14px;
+    }
+    
+    .log-container {
+        max-height: 150px;
+        padding: 6px;
+    }
+    
+    .log-entry {
+        padding: 6px;
+        margin-bottom: 4px;
+    }
+}
+
+/* ============================================
+   RESPONSIVE UTILITIES
+   ============================================ */
+
+/* Hide elements on mobile */
+@media (max-width: 640px) {
+    .hide-mobile {
+        display: none !important;
+    }
+}
+
+/* Show only on mobile */
+.show-mobile {
+    display: none !important;
+}
+
+@media (max-width: 640px) {
+    .show-mobile {
+        display: block !important;
+    }
+}
+
+/* Responsive text sizes */
+.text-responsive {
+    font-size: clamp(12px, 2.5vw, 16px);
+}
+
+/* Responsive spacing */
+.spacing-responsive {
+    padding: clamp(8px, 2vw, 20px);
+    margin: clamp(4px, 1vw, 12px);
+}
+
+/* ============================================
+   TOUCH-FRIENDLY IMPROVEMENTS
+   ============================================ */
+@media (hover: none) and (pointer: coarse) {
+    /* Touch devices */
+    button {
+        min-height: 44px; /* iOS recommended touch target */
+        min-width: 44px;
+    }
+    
+    .plot {
+        min-height: 32px;
+        min-width: 32px;
+    }
+    
+    input, textarea {
+        min-height: 44px;
+    }
+    
+    .plot:hover {
+        transform: none; /* Disable hover effects on touch */
+    }
+    
+    .plot:active {
+        transform: scale(0.95);
+        transition: transform 0.1s;
+    }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+@media print {
+    body {
+        background: white;
+        color: black;
+        padding: 0;
+    }
+    
+    .sidebar {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+    
+    .map {
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+    
+    .plot {
+        background: white !important;
+        color: black !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    .plot.sold {
+        background: #f0f0f0 !important;
+    }
+    
+    .plot.selected {
+        background: #ffeb3b !important;
+    }
+    
+    button {
+        display: none;
+    }
+    
+    .toast {
+        display: none;
     }
 }
