@@ -321,29 +321,16 @@
   // ==========================================
   
   /**
-   * Handle plot click events
+   * Handle plot click events - Single selection only
    */
   function handlePlotClick(e) {
     const idx = Number(this.dataset.index);
     
     if (soldSet.has(idx)) return;
     
-    if (e.shiftKey && lastSelected !== null) {
-      const start = Math.min(lastSelected, idx);
-      const end = Math.max(lastSelected, idx);
-      
-      for (let i = start; i <= end; i++) {
-        if (!soldSet.has(i)) {
-          selected.add(i);
-        }
-      }
-    } else {
-      if (selected.has(idx)) {
-        selected.delete(idx);
-      } else {
-        selected.add(idx);
-      }
-    }
+    // Clear previous selection and select only the clicked plot
+    selected.clear();
+    selected.add(idx);
     
     lastSelected = idx;
     render();
@@ -709,27 +696,7 @@
       logContainer.innerHTML = '<div class="log-empty">No transactions yet</div>';
     });
     
-    document.getElementById('selectAvailable').addEventListener('click', () => {
-      for (let i = 1; i <= TOTAL; i++) {
-        if (!soldSet.has(i)) selected.add(i);
-      }
-      render();
-    });
-    
-    document.getElementById('selectRange').addEventListener('click', () => {
-      const start = prompt('Enter start plot number (1-200):');
-      const end = prompt('Enter end plot number (1-200):');
-      
-      if (!start || !end) return;
-      
-      const s = Math.max(1, Math.min(TOTAL, parseInt(start)));
-      const e = Math.max(1, Math.min(TOTAL, parseInt(end)));
-      
-      for (let i = Math.min(s, e); i <= Math.max(s, e); i++) {
-        if (!soldSet.has(i)) selected.add(i);
-      }
-      render();
-    });
+
     
     document.getElementById('zoomIn').addEventListener('click', () => {
       zoomLevel = Math.min(1.5, zoomLevel + 0.1);

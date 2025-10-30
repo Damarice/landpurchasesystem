@@ -9,13 +9,15 @@
     /* Business Logic */
     --price: 65800;
     
-    /* Color Palette */
+    /* Color Palette - Blue and Green Only */
     --primary: #2563eb;
     --primary-light: #dbeafe;
+    --primary-dark: #1d4ed8;
     --success: #16a34a;
     --success-light: #dcfce7;
-    --danger: #dc2626;
-    --warning: #f59e0b;
+    --success-dark: #15803d;
+    --danger: #16a34a; /* Use green instead of red */
+    --warning: #2563eb; /* Use blue instead of yellow */
     
     /* Surfaces & Backgrounds */
     --surface: #ffffff;
@@ -207,10 +209,10 @@ button.danger {
     pointer-events: none;
 }
 
-/* Available plot hover state */
+/* Available plot hover state - Blue theme */
 .plot:hover:not(.sold) {
     transform: translateY(-2px) scale(1.05);
-    box-shadow: 0 6px 20px rgba(59,130,246,.4);
+    box-shadow: 0 6px 20px rgba(37,99,235,.4);
     border-color: #1d4ed8;
     z-index: 10;
 }
@@ -227,29 +229,28 @@ button.danger {
     border-color: rgba(255,255,255,.3);
 }
 
-/* Selected plot state */
+/* Selected plot state - Blue theme */
 .plot.selected {
-    background: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
-    border-color: #f59e0b;
-    box-shadow: 0 4px 16px rgba(245,158,11,.4);
+    background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+    border-color: #1e40af;
+    box-shadow: 0 4px 16px rgba(37,99,235,.4);
     transform: scale(1.05);
     z-index: 5;
-    color: #78350f;
+    color: white;
 }
 
 /* ============================================
-   BULK ACTIONS BAR
+   SELECTION INFO BAR
    ============================================ */
-.bulk-actions {
+.selection-info {
     display: flex;
-    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 12px;
     margin-bottom: 16px;
-}
-
-.bulk-actions button {
-    flex: 1;
-    padding: 8px;
-    font-size: 13px;
+    background: var(--primary-light);
+    border-radius: 8px;
+    border: 1px solid var(--primary);
 }
 
 /* ============================================
@@ -375,13 +376,13 @@ textarea {
     color: var(--success);
 }
 
-/* Budget warning states */
+/* Budget warning states - Blue and Green only */
 .budget-amount.low {
-    color: var(--warning);
+    color: var(--primary); /* Blue for low budget */
 }
 
 .budget-amount.critical {
-    color: var(--danger);
+    color: var(--success-dark); /* Dark green for critical */
 }
 
 /* ============================================
@@ -549,13 +550,13 @@ textarea {
 }
 
 /* ============================================
-   PAYMENT PLAN DISPLAY
+   PAYMENT PLAN DISPLAY - Blue theme
    ============================================ */
 .payment-plan {
     padding: 12px;
-    background: #fef3c7;
+    background: var(--primary-light);
     border-radius: 8px;
-    border: 1px solid #fde047;
+    border: 1px solid var(--primary);
     margin-top: 8px;
     font-size: 12px;
 }
@@ -563,7 +564,7 @@ textarea {
 .payment-plan-title {
     font-weight: 600;
     margin-bottom: 4px;
-    color: #92400e;
+    color: var(--primary-dark);
 }
 
 /* ============================================
@@ -725,14 +726,9 @@ footer {
         font-size: 24px;
     }
     
-    .bulk-actions {
-        flex-direction: column;
-        gap: 6px;
-    }
-    
-    .bulk-actions button {
-        flex: none;
-        width: 100%;
+    .selection-info {
+        padding: 6px 10px;
+        margin-bottom: 12px;
     }
     
     .legend {
@@ -903,9 +899,10 @@ footer {
         font-size: 11px;
     }
     
-    .bulk-actions button {
-        padding: 6px;
-        font-size: 12px;
+    .selection-info {
+        padding: 4px 8px;
+        margin-bottom: 8px;
+        font-size: 11px;
     }
     
     .buyer-header {
@@ -1102,7 +1099,7 @@ footer {
     }
     
     .plot.selected {
-        background: #ffeb3b !important;
+        background: #e3f2fd !important; /* Light blue for print */
     }
     
     button {
