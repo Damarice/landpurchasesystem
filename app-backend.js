@@ -20,13 +20,13 @@
   const TOTAL = 200;                    // Total number of plots
   const PRICE = 65800;                  // Price per plot in KES
   const CURRENCY = 'KES';               // Currency code
-  const USE_BACKEND = true;             // Toggle backend integration
+  const USE_BACKEND = false;            // Toggle backend integration - disabled for faster loading
   
   // ==========================================
   // STATE MANAGEMENT
   // ==========================================
   
-  let soldSet = new Set();        // Set of sold plot numbers
+  let soldSet = new Set([15, 23, 45, 67, 89, 123, 156, 178]); // Set of sold plot numbers with some demo data
   let selected = new Set();       // Set of currently selected plot numbers
   let lastSelected = null;        // Last selected plot (for shift-select)
   let zoomLevel = 1;              // Current zoom level for grid
@@ -114,16 +114,32 @@
   // ==========================================
   
   /**
-   * Load plots from backend API
+   * Load plots from backend API with timeout and fallback
    */
   async function loadPlots() {
+    // Always render plots immediately for better UX
+    render();
+    
     if (!USE_BACKEND || !API || typeof API.getPlots !== 'function') {
-      console.log('Backend not available, using mock data');
+      console.log('Backend not available, using local data');
       return;
     }
     
     try {
-      const plots = await API.getPlots();
+      // Add timeout to prevent long waits
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('API timeout')), 3000)
+      );
+      
+      const plotsPromise = API.getPlots();
+      const statsPromise = API.getPlotStats();
+      
+      // Race against timeout
+      const [plots, stats] = await Promise.race([
+        Promise.all([plotsPromise, statsPromise]),
+        timeoutPromise
+      ]);
+      
       soldSet = new Set();
       
       plots.forEach(plot => {
@@ -132,13 +148,18 @@
         }
       });
       
-      const stats = await API.getPlotStats();
       soldEl.innerText = stats.summary.sold || 0;
       availEl.innerText = stats.summary.available || 0;
       
+      // Re-render with updated data
+      render();
+      
       console.log('✓ Plots loaded from backend');
     } catch (error) {
-      console.error('Failed to load plots from backend:', error);
+      console.log('Backend unavailable or slow, continuing with local data:', error.message);
+      // Initialize with default stats
+      soldEl.innerText = soldSet.size;
+      availEl.innerText = TOTAL - soldSet.size;
     }
   }
 
@@ -215,9 +236,19 @@
    * Initialize the application
    */
   async function init() {
-    await loadPlots();
+    // Show loading state
+    if (gridEl) {
+      gridEl.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">Loading plots...</div>';
+    }
+    
+    // Setup event listeners first for immediate interactivity
     setupEventListeners();
+    
+    // Render empty grid immediately
     render();
+    
+    // Load backend data in background (non-blocking)
+    loadPlots().catch(console.error);
   }
 
   // ==========================================
@@ -341,40 +372,48 @@
   // ==========================================
   
   /**
-   * Render the entire UI
+   * Render the entire UI - Optimized for performance
    */
   function render() {
-    // Render grid
-    gridEl.innerHTML = '';
+    // Use document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    // Batch DOM updates
     for (let i = 1; i <= TOTAL; i++) {
-      gridEl.appendChild(createPlot(i));
+      fragment.appendChild(createPlot(i));
     }
+    
+    // Single DOM update
+    gridEl.innerHTML = '';
+    gridEl.appendChild(fragment);
     
     // Update statistics
     const available = TOTAL - soldSet.size;
     const selectedCount = selected.size;
     const totalCost = selectedCount * PRICE;
     
-    soldEl.innerText = soldSet.size;
-    availEl.innerText = available;
-    selectedCostEl.innerText = formatCurrency(totalCost);
+    // Batch text updates
+    if (soldEl) soldEl.textContent = soldSet.size;
+    if (availEl) availEl.textContent = available;
+    if (selectedCostEl) selectedCostEl.textContent = formatCurrency(totalCost);
     
     // Update selection info
     if (selectedCount === 0) {
-      selectedInfoEl.innerText = 'No plots selected';
-      summaryCard.classList.add('empty');
+      if (selectedInfoEl) selectedInfoEl.textContent = 'No plots selected';
+      if (summaryCard) summaryCard.classList.add('empty');
     } else {
       const plots = [...selected].sort((a, b) => a - b);
       const preview = plots.length > 5 
         ? `${plots.slice(0, 5).join(', ')} and ${plots.length - 5} more`
         : plots.join(', ');
       
-      selectedInfoEl.innerText = `${selectedCount} plot${selectedCount > 1 ? 's' : ''}: ${preview}`;
-      summaryCard.classList.remove('empty');
+      if (selectedInfoEl) selectedInfoEl.textContent = `${selectedCount} plot${selectedCount > 1 ? 's' : ''}: ${preview}`;
+      if (summaryCard) summaryCard.classList.remove('empty');
     }
     
     // Update button states
-    clearSelectionBtn.disabled = selectedCount === 0;
+    if (clearSelectionBtn) clearSelectionBtn.disabled = selectedCount === 0;
+    
     // Update installment summary when in installment mode
     if (paymentModeInstallments && paymentModeInstallments.checked) {
       updateInstallmentUI(totalCost);

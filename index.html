@@ -318,7 +318,10 @@
 <div id="toast" class="toast" aria-live="polite" aria-atomic="true" role="status" style="display:none">✓ Purchase sent successfully</div>
 
 <script>
-  window.API_BASE_URL = 'https://landpurchasesystem.onrender.com/api';
+  // Use local API for faster loading, fallback to remote if needed
+  window.API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3000/api' 
+    : 'https://landpurchasesystem.onrender.com/api';
 </script>
 <script src="api-client.js"></script>
 <script src="app-backend.js"></script>
